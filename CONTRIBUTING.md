@@ -154,14 +154,14 @@ The host computes the actual content area from the slot config (single = `iconSi
 
 Don't write your own settings UI. Declare what you need and the app renders it natively:
 
+From the StorageMonitor example widget:
+
 ```swift
 func settingsSchema() -> [WidgetSetting] {
     [
-        .toggle(key: "showGraph", label: "Show Graph", defaultValue: true),
-        .picker(key: "interval", label: "Update Interval",
-                options: ["1s", "5s", "30s"], defaultValue: "5s"),
-        .slider(key: "threshold", label: "Alert Threshold",
-                range: 50...100, step: 5, defaultValue: 80),
+        .toggle(key: "showPercentage", label: "Show Percentage Instead of GB", defaultValue: false),
+        .slider(key: "warningThreshold", label: "Warning Threshold (%)", range: 50...95, step: 5, defaultValue: 75),
+        .picker(key: "ringStyle", label: "Ring Style", options: ["Rounded", "Flat"], defaultValue: "Rounded"),
     ]
 }
 ```
@@ -169,8 +169,9 @@ func settingsSchema() -> [WidgetSetting] {
 Read values at runtime:
 
 ```swift
-let showGraph = WidgetDefaults.bool(key: "showGraph", widgetId: id)
-let interval = WidgetDefaults.string(key: "interval", widgetId: id)
+let showPercentage = WidgetDefaults.bool(key: "showPercentage", widgetId: id)
+let threshold = WidgetDefaults.double(key: "warningThreshold", widgetId: id, default: 75)
+let ringStyle = WidgetDefaults.string(key: "ringStyle", widgetId: id, default: "Rounded")
 ```
 
 ## What you can't do
