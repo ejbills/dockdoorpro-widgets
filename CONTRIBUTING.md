@@ -192,7 +192,7 @@ CI also runs a lint pass for these.
    ```
 4. Copy your bundle into the DockDoor Pro widgets directory:
    ```bash
-   cp -r build/YourWidget.bundle ~/Library/Application\ Support/DockDoor\ Pro/Widgets/
+   cp -r build/YourWidget.bundle ~/Library/Application\ Support/DockDoorPro/Widgets/
    ```
 5. Restart DockDoor Pro. Your widget should show up in the widget picker.
 
