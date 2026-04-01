@@ -60,6 +60,7 @@ struct StorageMonitorView: View {
                 compactLayout
             }
         }
+        .padding(3)
         .onAppear { refresh() }
     }
 
