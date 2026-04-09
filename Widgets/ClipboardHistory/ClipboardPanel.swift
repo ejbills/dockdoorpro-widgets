@@ -2,7 +2,19 @@ import AppKit
 import SwiftUI
 import PDFKit
 import AVFoundation
+import AVKit
 import Quartz
+
+// MARK: - NSPanel personnalisé (accepte la saisie clavier)
+
+/// Sous-classe de NSPanel qui autorise le focus clavier tout en restant non-activant.
+/// Nécessaire pour que les champs de texte et les raccourcis clavier fonctionnent
+/// dans le panneau flottant sans voler le focus à l'application active.
+final class PanneauEditable: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+    override var acceptsFirstResponder: Bool { true }
+}
 
 // MARK: - Aide couleur d'accentuation
 
@@ -272,42 +284,168 @@ private struct ApercuFichierImage: View {
     }
 }
 
-/// Aperçu vidéo : miniature (frame extraite) + icône play superposée.
+/// NSView custom avec AVPlayerLayer en couche directe — aucun fond noir possible.
+/// Contrairement à AVPlayerView, on contrôle exactement ce qui est dessiné.
+private final class NSVuePlayerCouche: NSView {
+    let couchePlayer: AVPlayerLayer
+
+    init(lecteur: AVPlayer) {
+        couchePlayer = AVPlayerLayer(player: lecteur)
+        couchePlayer.videoGravity = .resizeAspect
+        couchePlayer.backgroundColor = .clear
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = .clear
+        layer?.addSublayer(couchePlayer)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        couchePlayer.frame = bounds
+        CATransaction.commit()
+    }
+}
+
+/// Lecteur AVPlayer encapsulé dans NSViewRepresentable via couche directe.
+/// Fond 100 % transparent : pas de bandes noires, pas de zoom.
+private struct VueAVPlayer: NSViewRepresentable {
+    let lecteur: AVPlayer
+
+    func makeNSView(context: Context) -> NSVuePlayerCouche {
+        NSVuePlayerCouche(lecteur: lecteur)
+    }
+
+    func updateNSView(_ vue: NSVuePlayerCouche, context: Context) {
+        if vue.couchePlayer.player !== lecteur {
+            vue.couchePlayer.player = lecteur
+        }
+    }
+}
+
+/// Aperçu vidéo : miniature (frame extraite à la taille de l'aperçu) + icône play.
+/// Un clic lance la vidéo directement dans la vue via AVPlayer — pas de fenêtre externe.
 private struct ApercuFichierVideo: View {
     let url: URL
     @State private var image: NSImage? = nil
+    @State private var lecteur: AVPlayer? = nil
+    @State private var videoPreteAfficher = false   // true dès la 1ère frame rendue
+    @State private var estSilence = false
 
     var body: some View {
-        ZStack {
-            if let img = image {
-                Image(nsImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.15))
-                ProgressView()
-            }
-            // Icône play
+        GeometryReader { geo in
             ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 52, height: 52)
-                Image(systemName: "play.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .offset(x: 2)
+                // ── Miniature en fond permanent ───────────────────────────────
+                // Visible jusqu'à ce que la vidéo ait rendu sa 1ère frame réelle
+                if let img = image {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(width: geo.size.width, height: geo.size.height)
+                    ProgressView()
+                }
+
+                // ── Lecteur — visible seulement après la 1ère frame ───────────
+                if let lect = lecteur {
+                    VueAVPlayer(lecteur: lect)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(videoPreteAfficher ? 1 : 0)
+                }
+
+                // ── Icône play (uniquement hors lecture) ──────────────────────
+                if lecteur == nil {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 52, height: 52)
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .offset(x: 2)
+                    }
+                }
+
+                // ── Bouton mute/unmute (visible uniquement pendant la lecture) ─
+                if lecteur != nil {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button {
+                                if let lect = lecteur {
+                                    lect.isMuted.toggle()
+                                    estSilence.toggle()
+                                }
+                            } label: {
+                                Image(systemName: estSilence ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(.black.opacity(0.45)))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(10)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .onTapGesture {
+                if lecteur == nil {
+                    let lect = AVPlayer(url: url)
+                    lecteur = lect
+                    lect.play()
+                    // Afficher le player dès qu'il commence vraiment à jouer
+                    observerPremiereLecture(lect)
+                } else {
+                    if lecteur?.timeControlStatus == .playing {
+                        lecteur?.pause()
+                    } else {
+                        lecteur?.play()
+                    }
+                }
+            }
+            .onAppear { charger(taille: geo.size) }
+            .onChange(of: url) {
+                lecteur = nil
+                videoPreteAfficher = false
+                charger(taille: geo.size)
             }
         }
         .padding(8)
-        .onAppear { charger() }
-        .onChange(of: url) { charger() }
     }
 
-    private func charger() {
+    /// Surveille timeControlStatus : dès que le player joue réellement (1ère frame affichée),
+    /// on rend le lecteur visible. Sondage léger toutes les 50 ms, s'arrête dès succès.
+    private func observerPremiereLecture(_ lect: AVPlayer) {
+        var tentatives = 0
+        func verifier() {
+            guard tentatives < 40 else { return }   // timeout 2 s
+            tentatives += 1
+            if lect.timeControlStatus == .playing {
+                DispatchQueue.main.async { videoPreteAfficher = true }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { verifier() }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { verifier() }
+    }
+
+    /// Décode la miniature au plus à la taille réelle de la vue — jamais en 4K.
+    private func charger(taille: CGSize) {
+        guard lecteur == nil else { return }
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
+        let maxPx = max(taille.width, taille.height, 1) * scale
         DispatchQueue.global(qos: .userInitiated).async {
-            let img = MiniatureVideoURL.extraireFramePublic(de: url)
+            let img = MiniatureVideoURL.extraireFramePublic(de: url, tailleMax: maxPx)
             DispatchQueue.main.async { image = img }
         }
     }
@@ -971,15 +1109,21 @@ private struct MiniatureVideoURL: View {
 
     /// Extrait la première frame exploitable (à t = 0.5 s ou t = 0 si fichier court).
     /// Toute la charge est sur un background thread — jamais sur le main thread.
-    static func extraireFramePublic(de url: URL) -> NSImage? {
-        extraireFrame(de: url)
+    /// `tailleMax` : dimension maximale du côté le plus long en pixels physiques.
+    /// Passer 120 pour les miniatures de liste, la vraie taille de vue pour l'aperçu.
+    /// AVAssetImageGenerator ne décodera jamais plus de pixels que nécessaire.
+    static func extraireFramePublic(de url: URL, tailleMax: CGFloat = 120) -> NSImage? {
+        extraireFrame(de: url, tailleMax: tailleMax)
     }
 
-    private static func extraireFrame(de url: URL) -> NSImage? {
+    private static func extraireFrame(de url: URL, tailleMax: CGFloat = 120) -> NSImage? {
         let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: false])
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true   // respecte la rotation de la vidéo
-        gen.maximumSize = CGSize(width: 120, height: 120)  // limite le décodage
+        // Limiter le décodage à la taille réelle de la vue — jamais en pleine résolution.
+        // Une vidéo 4K dans une fenêtre de 400 px sera décodée en 400 px max, pas en 4K.
+        let cap = max(tailleMax, 1)
+        gen.maximumSize = CGSize(width: cap, height: cap)
         gen.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
         gen.requestedTimeToleranceAfter  = CMTime(seconds: 1, preferredTimescale: 600)
         let temps = CMTime(seconds: 0.5, preferredTimescale: 600)
@@ -1165,6 +1309,9 @@ private struct BoutonIconeSurvol: View {
     @State private var estSurvole = false
     @State private var estPresse  = false
 
+    // Rouge si la couleur passée est rouge (bouton supprimer)
+    private var estRouge: Bool { couleur == .red }
+
     var body: some View {
         Button {
             withAnimation(.spring(response: 0.22, dampingFraction: 0.65)) { estPresse = true }
@@ -1174,16 +1321,17 @@ private struct BoutonIconeSurvol: View {
             }
         } label: {
             Image(systemName: symbole)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(estSurvole ? couleur.opacity(0.8) : couleur)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(estRouge
+                    ? Color.red
+                    : (estSurvole ? Color.accentColor : Color.secondary))
                 .frame(width: 36, height: 34)
                 .background(
-                    estSurvole ? Color.secondary.opacity(0.25) : Color.secondary.opacity(0.15),
-                    in: RoundedRectangle(cornerRadius: 26)
+                    RoundedRectangle(cornerRadius: 26).fill(estRouge
+                        ? (estSurvole ? Color.red.opacity(0.15) : Color.primary.opacity(0.06))
+                        : (estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
                 )
-                .scaleEffect(estPresse ? 0.85 : (estSurvole ? 1.05 : 1.0))
                 .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
-                .animation(.spring(response: 0.22, dampingFraction: 0.65), value: estPresse)
         }
         .buttonStyle(.plain)
         .help(texteAide)
@@ -1235,22 +1383,24 @@ private struct BoutonEpingleElement: View {
             }
         } label: {
             Image(systemName: estEpingle ? "pin.fill" : "pin")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(estEpingle ? Color.accentColor : (estSurvole ? Color.accentColor.opacity(0.8) : Color.secondary))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(estEpingle ? Color.accentColor : (estSurvole ? Color.accentColor : Color.secondary))
                 .rotationEffect(.degrees(rotation))
-                .scaleEffect(scale * (estPresse ? 0.85 : (estSurvole ? 1.05 : 1.0)))
+                .scaleEffect(scale)
                 .frame(width: 36, height: 34)
                 .background(
-                    estSurvole ? Color.secondary.opacity(0.25) : Color.secondary.opacity(0.15),
-                    in: RoundedRectangle(cornerRadius: 26)
+                    RoundedRectangle(cornerRadius: 26).fill(estEpingle
+                        ? Color.accentColor.opacity(0.15)
+                        : (estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
                 )
                 .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
+
+                .animation(.interpolatingSpring(stiffness: 280, damping: 14), value: scale)
         }
         .buttonStyle(.plain)
         .help(estEpingle ? L.epingler : L.epingler)
         .onHover { estSurvole = $0 }
         .onChange(of: estEpingle) {
-            // Synchroniser la rotation si l'état change depuis l'extérieur
             withAnimation(.spring(response: 0.25, dampingFraction: 0.80)) {
                 rotation = estEpingle ? 45 : 0
             }
@@ -1273,13 +1423,16 @@ private struct BoutonSauvegardeImage: View {
                     Image(systemName: "square.and.arrow.down")
                 }
             }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(confirme ? .white : (estSurvole ? Color.secondary.opacity(0.8) : Color.secondary))
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(confirme ? .white : (estSurvole ? Color.accentColor : Color.secondary))
             .frame(width: 36, height: 34)
             .background(
-                confirme ? Color.green : (estSurvole ? Color.secondary.opacity(0.25) : Color.secondary.opacity(0.15)),
-                in: RoundedRectangle(cornerRadius: 26)
+                RoundedRectangle(cornerRadius: 26).fill(confirme
+                    ? Color.green
+                    : (estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
             )
+            
+            .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
         }
         .onHover { estSurvole = $0 }
     }
@@ -1307,13 +1460,16 @@ private struct BoutonSauvegardeFichier: View {
                     Image(systemName: "square.and.arrow.down")
                 }
             }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(confirme ? .white : (estSurvole ? Color.secondary.opacity(0.8) : Color.secondary))
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(confirme ? .white : (estSurvole ? Color.accentColor : Color.secondary))
             .frame(width: 36, height: 34)
             .background(
-                confirme ? Color.green : (estSurvole ? Color.secondary.opacity(0.25) : Color.secondary.opacity(0.15)),
-                in: RoundedRectangle(cornerRadius: 26)
+                RoundedRectangle(cornerRadius: 26).fill(confirme
+                    ? Color.green
+                    : (estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
             )
+            
+            .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
         }
         .onHover { estSurvole = $0 }
     }
@@ -1321,7 +1477,6 @@ private struct BoutonSauvegardeFichier: View {
     private func sauvegarderSurBureau() {
         let bureau = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
         let destination = bureau.appendingPathComponent(url.lastPathComponent)
-        // Si un fichier du même nom existe déjà, on numérote
         var dest = destination
         var compteur = 1
         while FileManager.default.fileExists(atPath: dest.path) {
@@ -1341,6 +1496,7 @@ private struct BoutonSauvegardeFichier: View {
 private struct ControleFiltreSegmente: View {
     let filtres: [FiltrePressePapier]
     @Binding var filtreActif: FiltrePressePapier
+    var iconesSeulement: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -1360,7 +1516,7 @@ private struct ControleFiltreSegmente: View {
 
                 HStack(spacing: 0) {
                     ForEach(filtres, id: \.self) { filtre in
-                        BoutonSegment(filtre: filtre, estActif: filtreActif == filtre, largeur: l, hauteur: h) {
+                        BoutonSegment(filtre: filtre, estActif: filtreActif == filtre, largeur: l, hauteur: h, iconesSeulement: iconesSeulement) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { filtreActif = filtre }
                         }
                     }
@@ -1376,23 +1532,30 @@ private struct BoutonSegment: View {
     let estActif: Bool
     let largeur: CGFloat
     let hauteur: CGFloat
+    var iconesSeulement: Bool = false
     let action: () -> Void
 
     @State private var estSurvole = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 3) {
-                Image(systemName: filtre.icone)
-                    .font(.system(size: 10, weight: .medium))
-                if estActif {
+            Group {
+                if iconesSeulement {
+                    Image(systemName: filtre.icone)
+                        .font(.system(size: 10, weight: .medium))
+                } else if estActif {
                     Text(filtre.etiquette)
                         .font(.system(size: 10, weight: .medium))
                         .lineLimit(1)
-                        .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .leading)))
+                        .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .center)))
+                } else {
+                    Image(systemName: filtre.icone)
+                        .font(.system(size: 10, weight: .medium))
+                        .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .center)))
                 }
             }
             .foregroundStyle(estActif ? .primary : (estSurvole ? .primary : .secondary))
+            .padding(.horizontal, 6)
             .frame(width: largeur, height: hauteur)
             .background(
                 estSurvole && !estActif
@@ -1404,6 +1567,186 @@ private struct BoutonSegment: View {
         .buttonStyle(.plain)
         .onHover { estSurvole = $0 }
         .animation(.spring(response: 0.3, dampingFraction: 0.78), value: estActif)
+    }
+}
+
+// MARK: - CGEvent tap partagé (bloquant, niveau session)
+//
+// Pourquoi CGEvent tap et pas LocalMonitor / GlobalMonitor ?
+// • .nonactivatingPanel rend makeKey() inopérant → LocalMonitor ne reçoit rien.
+// • GlobalMonitor reçoit les touches mais ne peut pas les bloquer : elles
+//   arrivent aussi à l'app en arrière-plan (double-frappe).
+// • CGEvent tap opère en amont de toute distribution fenêtre. Retourner nil
+//   dans le callback supprime définitivement l'événement — même avec
+//   .nonactivatingPanel, et indépendamment de quelle fenêtre est keyWindow.
+//   C'est le même mécanisme utilisé pour le raccourci d'ouverture.
+
+private enum TapClavierActif {
+    /// Installe un CGEvent tap bloquant pour les keyDown.
+    /// - parameter handler: appelé sur le thread principal avec l'NSEvent correspondant.
+    /// - returns: opaque wrapper à passer à `retirer(_:)` pour nettoyer.
+    static func installer(handler: @escaping (NSEvent) -> Void) -> CFMachPort? {
+        let masque = CGEventMask(1 << CGEventType.keyDown.rawValue)
+
+        // On stocke le handler dans une box pour le passer via refcon (UnsafeMutableRawPointer).
+        let box = HandlerBox(handler)
+        let refcon = Unmanaged.passRetained(box).toOpaque()
+
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: masque,
+            callback: { _, _, cgEvent, refcon -> Unmanaged<CGEvent>? in
+                guard let refcon,
+                      let nsEvent = NSEvent(cgEvent: cgEvent) else {
+                    return Unmanaged.passRetained(cgEvent)
+                }
+                let box = Unmanaged<HandlerBox>.fromOpaque(refcon).takeUnretainedValue()
+                DispatchQueue.main.async { box.handler(nsEvent) }
+                return nil   // bloque l'événement — il n'atteint aucune autre fenêtre
+            },
+            userInfo: refcon
+        ) else {
+            Unmanaged<HandlerBox>.fromOpaque(refcon).release()
+            return nil
+        }
+
+        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        return tap
+    }
+
+    /// Désactive et libère le tap retourné par `installer`.
+    static func retirer(_ tap: CFMachPort?) {
+        guard let tap else { return }
+        CGEvent.tapEnable(tap: tap, enable: false)
+    }
+
+    // Box pour transporter le closure Swift à travers le refcon C.
+    private final class HandlerBox {
+        let handler: (NSEvent) -> Void
+        init(_ h: @escaping (NSEvent) -> Void) { handler = h }
+    }
+}
+
+// MARK: - Bouton recherche
+
+private struct BoutonRecherche: View {
+    let action: () -> Void
+    @State private var estSurvole = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(estSurvole ? Color.accentColor : Color.secondary)
+                .frame(width: 30, height: 30)
+                .background(
+                    Circle()
+                        .fill(estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
+                )
+                
+        }
+        .buttonStyle(.plain)
+        .onHover { estSurvole = $0 }
+        .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
+    }
+}
+
+// MARK: - Champ de recherche inline (remplace les filtres)
+
+private struct ChampRechercheInline: View {
+    @Binding var texte: String
+    @Binding var actif: Bool
+
+    @State private var curseurVisible = true
+    @State private var timerCurseur: Timer? = nil
+    @State private var moniteurClavier: CFMachPort? = nil
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            ZStack(alignment: .leading) {
+                if texte.isEmpty {
+                    Text(S("Rechercher…", "Search…"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                }
+                HStack(spacing: 0) {
+                    Text(texte)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .frame(width: 1.5, height: 14)
+                        .opacity(curseurVisible ? 1 : 0)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Croix vide le texte si du texte est écrit, sinon ferme le champ
+            Button {
+                if texte.isEmpty { fermer() } else { texte = "" }
+            } label: {
+                Image(systemName: texte.isEmpty ? "xmark" : "xmark.circle.fill")
+                    .font(.system(size: texte.isEmpty ? 10 : 12, weight: texte.isEmpty ? .semibold : .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 32)
+        .background(RoundedRectangle(cornerRadius: 20).fill(Color.primary.opacity(0.08)))
+        .frame(maxWidth: .infinity)
+        .onAppear { installerMoniteur() }
+        .onDisappear { retirerMoniteur() }
+    }
+
+    private func fermer() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            texte = ""
+            actif = false
+        }
+    }
+
+    private func installerMoniteur() {
+        curseurVisible = true
+        timerCurseur = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            DispatchQueue.main.async { curseurVisible.toggle() }
+        }
+
+        // CGEvent tap bloquant : intercepte les keyDown en amont de toute distribution.
+        // Retourner nil dans le callback bloque l'événement — il n'atteint pas l'app en fond.
+        // C'est la seule solution fiable avec .nonactivatingPanel :
+        //   • LocalMonitor ne reçoit rien car makeKey() est inopérant sur .nonactivatingPanel.
+        //   • GlobalMonitor reçoit les touches mais ne peut pas les bloquer (double-frappe).
+        moniteurClavier = TapClavierActif.installer(handler: { event in
+            traiterEvenement(event)
+        })
+    }
+
+    private func retirerMoniteur() {
+        timerCurseur?.invalidate()
+        timerCurseur = nil
+        TapClavierActif.retirer(moniteurClavier)
+        moniteurClavier = nil
+    }
+
+    private func traiterEvenement(_ event: NSEvent) {
+        if event.keyCode == 53 { fermer(); return }
+        if event.keyCode == 51 { if !texte.isEmpty { texte = String(texte.dropLast()) }; return }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if !flags.intersection([.command, .control, .option]).isEmpty { return }
+        if let chars = event.characters {
+            let filtrés = chars.filter { !$0.isNewline && $0 != "\t" && $0.asciiValue ?? 0 >= 32 }
+            if !filtrés.isEmpty { texte += filtrés }
+        }
     }
 }
 
@@ -1421,14 +1764,13 @@ private struct BoutonReinitialisation: View {
         } label: {
             Image(systemName: "arrow.counterclockwise")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(estSurvole ? Color.orange : Color.secondary)
+                .foregroundStyle(Color.red)
                 .rotationEffect(.degrees(rotation))
                 .frame(width: 30, height: 30)
                 .background(
-                    Circle()
-                        .fill(estSurvole ? Color.orange.opacity(0.12) : Color.primary.opacity(0.06))
+                    Circle().fill(estSurvole ? Color.red.opacity(0.15) : Color.primary.opacity(0.06))
                 )
-                .scaleEffect(estSurvole ? 1.1 : 1.0)
+                
         }
         .buttonStyle(.plain)
         .help(L.effacerHisto)
@@ -1742,6 +2084,7 @@ private struct BoutonSurvolableSequence<Etiquette: View>: View {
 private struct BoutonEpinglagePanneau: View {
     @Binding var estEpingle: Bool
     @State private var estSurvole = false
+    @State private var estPresse  = false
     @State private var rotation: Double = 0
     @State private var scale: CGFloat = 1
 
@@ -1773,19 +2116,25 @@ private struct BoutonEpinglagePanneau: View {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.80)) {
                 estEpingle = epinglageVers
             }
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.65)) { estPresse = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { estPresse = false }
+            }
         } label: {
             Image(systemName: estEpingle ? "pin.fill" : "pin")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(estEpingle ? Color.accentColor : (estSurvole ? .primary : .secondary))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(estEpingle ? Color.accentColor : (estSurvole ? Color.accentColor : Color.secondary))
                 .rotationEffect(.degrees(rotation))
                 .scaleEffect(scale)
                 .frame(width: 30, height: 30)
                 .background(
-                    estEpingle
+                    Circle().fill(estEpingle
                         ? Color.accentColor.opacity(0.15)
-                        : (estSurvole ? Color.primary.opacity(0.10) : Color.primary.opacity(0.05)),
-                    in: Circle()
+                        : (estSurvole ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
                 )
+                .animation(.spring(response: 0.28, dampingFraction: 0.78), value: estSurvole)
+
+                .animation(.interpolatingSpring(stiffness: 280, damping: 14), value: scale)
         }
         .buttonStyle(.plain)
         .help(estEpingle
@@ -1987,14 +2336,15 @@ struct PanneauPressePapier: View {
     @State private var filtreActif: FiltrePressePapier = .tout
     @State private var afficherPanneauSequence: Bool = false
     @State private var fileSequence: [ElementPressePapier] = []
+    @State private var rechercheActive: Bool = false
+    @State private var texteRecherche: String = ""
 
     private var elementsFiltres: [ElementPressePapier] {
+        let base: [ElementPressePapier]
         switch filtreActif {
-        case .tout:    return moniteur.elements
-        case .medias:  return moniteur.elements.filter {
-            // Images bitmap copiées
+        case .tout:    base = moniteur.elements
+        case .medias:  base = moniteur.elements.filter {
             if case .image = $0.contenu { return true }
-            // Fichiers image / vidéo / document
             if case .urlFichier(let url) = $0.contenu {
                 let ext = url.pathExtension.lowercased()
                 let extensionsMedia: Set<String> = [
@@ -2006,7 +2356,7 @@ struct PanneauPressePapier: View {
             }
             return false
         }
-        case .donnees: return moniteur.elements.filter {
+        case .donnees: base = moniteur.elements.filter {
             if case .texte = $0.contenu {
                 let st = $0.sousTypeCache
                 return st == .email || st == .telephone || st == .date || st == .url
@@ -2014,6 +2364,10 @@ struct PanneauPressePapier: View {
             return false
         }
         }
+        // Appliquer la recherche textuelle par-dessus le filtre actif
+        let q = texteRecherche.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return base }
+        return base.filter { $0.titreAffiche.lowercased().contains(q) }
     }
 
     private var elementsEpingles:    [ElementPressePapier] { elementsFiltres.filter { $0.estEpingle } }
@@ -2033,7 +2387,27 @@ struct PanneauPressePapier: View {
 
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    ControleFiltreSegmente(filtres: FiltrePressePapier.allCases, filtreActif: $filtreActif)
+                    if rechercheActive {
+                        // ── Mode recherche : champ texte remplace les filtres ──
+                        ChampRechercheInline(texte: $texteRecherche, actif: $rechercheActive)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.85, anchor: .leading).combined(with: .opacity),
+                                removal:   .scale(scale: 0.85, anchor: .leading).combined(with: .opacity)
+                            ))
+                    } else {
+                        // ── Mode normal : filtres + bouton recherche ───────────
+                        ControleFiltreSegmente(filtres: FiltrePressePapier.allCases, filtreActif: $filtreActif, iconesSeulement: afficherBoutonEpingle)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.85, anchor: .trailing).combined(with: .opacity),
+                                removal:   .scale(scale: 0.85, anchor: .trailing).combined(with: .opacity)
+                            ))
+                        BoutonRecherche {
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                                rechercheActive = true
+                            }
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
                     if let binding = epingleBinding {
                         BoutonEpinglagePanneau(estEpingle: binding)
                     }
@@ -2167,8 +2541,6 @@ struct PanneauPressePapier: View {
         // │  [Coller] [Copier] [💾] [📌] [🗑]       │
         // └─────────────────────────────────────────┘
 
-        // OPTIMISATION 8 : @ViewBuilder au lieu d'AnyView — SwiftUI peut comparer les types
-        // concrets et ne redessiner que ce qui a réellement changé.
         let zoneApercu = ZStack {
             RoundedRectangle(cornerRadius: 26)
                 .fill(Color.secondary.opacity(0.10))
@@ -2312,71 +2684,80 @@ struct PanneauPressePapier: View {
 
 // MARK: - Wrapper SDK : protège dismiss() contre la fermeture prématurée
 //
-// Problème : DD Pro appelle dismiss() dès que son NSPanel perd le focus.
-// Or, quand l'utilisateur déplace la souris VERS le panneau, AppKit envoie
-// d'abord un mouseEntered qui provoque un resignKey sur la fenêtre précédente
-// — ce qui déclenche dismiss() avant même que la souris soit arrivée.
+// Problème : DD Pro surveille la souris sur son widget et appelle dismiss()
+// dès qu'elle le quitte — même si elle se dirige vers notre panel popup.
+// Quand la souris bouge vite, le dismiss est déclenché avant que la souris
+// soit arrivée sur le panel, qui disparaît aussitôt.
 //
-// Solution : on injecte un NSView sentinelle via NSViewRepresentable qui,
-// à son addedToWindow, configure le NSPanel pour qu'il ne ferme pas
-// sur resignKey (.becomesKeyOnlyIfNeeded = true + hidesOnDeactivate = false).
-// En parallèle, on garde une garde onHover pour les cas où DD Pro
-// appelle dismiss() via un moniteur d'événements global.
+// Solution : makePanelBody (ClipboardPlugin) enveloppe le dismiss DD Pro
+// dans un dismissProtege qui attend 200 ms et vérifie via NSEvent.mouseLocation
+// si la souris est dans le frame du panel. Si oui → fermeture annulée.
+// La fermeture explicite (bouton ✕, raccourci) passe par `fermer` directement.
+
+// MARK: - Contexte partagé Plugin ↔ Sentinelle
+
+/// Objet de liaison transmis par ClipboardPlugin à PanneauPressePapierSDK
+/// puis à SentinelleNSPanel. La sentinelle y dépose la fenêtre dès qu'elle
+/// est insérée dans la hiérarchie, ce qui permet au dismissProtege de connaître
+/// le frame du panel pour vérifier la position de la souris.
+final class ContexteFenetrePanelSDK: @unchecked Sendable {
+    weak var fenetre: NSWindow?
+    var workItemEnCours: DispatchWorkItem?
+
+    func annulerFermetureProgrammee() {
+        workItemEnCours?.cancel()
+        workItemEnCours = nil
+    }
+}
 
 struct PanneauPressePapierSDK: View {
     let moniteur: MoniteurPressePapier
+    /// Fermeture explicite (bouton ✕, raccourci) — toujours honorée.
     let dismiss: () -> Void
-
-    @State private var sourisDedans: Bool = false
+    /// Fermeture avec délai de grâce — appelée par DD Pro quand la souris quitte le widget.
+    let dismissProtege: () -> Void
+    let contexte: ContexteFenetrePanelSDK
 
     var body: some View {
         PanneauPressePapier(
             moniteur: moniteur,
-            fermer: dismiss              // fermeture explicite → toujours honorer
+            fermer: dismiss
         )
-        // Sentinelle NSView : configure le NSPanel dès l'insertion dans la hiérarchie
-        .background(SentinelleNSPanel())
+        .background(SentinelleNSPanel(contexte: contexte))
         .onHover { dedans in
-            sourisDedans = dedans
-        }
-        // Surcharge du dismiss appelé par DD Pro sur perte de focus :
-        // on l'ignore si la souris est encore dans le panneau.
-        .onChange(of: sourisDedans) { _, dedans in
-            // Rien à faire ici — la garde est dans dismissProtege ci-dessous.
-            _ = dedans
-        }
-    }
-
-    /// dismiss protégé : ignoré si la souris est dans la vue.
-    /// Appelé par DD Pro via son mécanisme interne de fermeture.
-    /// On l'expose via une clé d'environnement propre au widget.
-    private var dismissProtege: () -> Void {
-        { [sourisDedans] in
-            if !sourisDedans { dismiss() }
+            // Dès que la souris entre dans le panel, on annule la fermeture programmée.
+            if dedans { contexte.annulerFermetureProgrammee() }
         }
     }
 }
 
 // MARK: - Sentinelle NSPanel
 
-/// NSView invisible dont le seul rôle est de configurer le NSPanel parent
-/// dès qu'il est inséré dans la hiérarchie de vues.
+/// NSView invisible dont le seul rôle est de déposer la référence à la
+/// NSWindow dans ContexteFenetrePanelSDK dès qu'elle est connue.
 private struct SentinelleNSPanel: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let vue = NSView()
+    let contexte: ContexteFenetrePanelSDK
+
+    func makeNSView(context: Context) -> VueSentinelle {
+        let vue = VueSentinelle(contexte: contexte)
         vue.translatesAutoresizingMaskIntoConstraints = false
         return vue
     }
 
-    func updateNSView(_ vue: NSView, context: Context) {
-        // On reporte la configuration au prochain runloop pour être sûr
-        // que window est déjà assignée.
-        DispatchQueue.main.async {
-            guard let panneau = vue.window as? NSPanel else { return }
-            // Ne pas perdre le statut "key" uniquement à cause d'un mouseEntered.
-            panneau.becomesKeyOnlyIfNeeded = true
-            // Ne pas masquer le panneau quand l'app passe en arrière-plan.
-            panneau.hidesOnDeactivate = false
+    func updateNSView(_ vue: VueSentinelle, context: Context) {}
+
+    // NSView subclass : viewDidMoveToWindow est fiable dès l'insertion.
+    class VueSentinelle: NSView {
+        let contexte: ContexteFenetrePanelSDK
+        init(contexte: ContexteFenetrePanelSDK) {
+            self.contexte = contexte
+            super.init(frame: .zero)
+        }
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            contexte.fenetre = window
         }
     }
 }

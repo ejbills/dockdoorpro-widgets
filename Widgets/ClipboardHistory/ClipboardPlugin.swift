@@ -103,7 +103,7 @@ final class ClipboardPlugin: WidgetPlugin, DockDoorWidgetProvider {
     // Tap CGEvent (intercepte ET bloque le raccourci pour éviter l'insertion du caractère parasite)
     private var tapRaccourciEvenement: CFMachPort?
     private var sourceRunLoopRaccourci: CFRunLoopSource?
-    private var panneauFlottant: NSPanel?
+    private var panneauFlottant: PanneauEditable?
     private var observateurResignation: Any?
     /// Quand true, le panneau ignore la perte de focus et ne se ferme pas automatiquement.
     private var estEpingle: Bool = false
@@ -215,7 +215,7 @@ final class ClipboardPlugin: WidgetPlugin, DockDoorWidgetProvider {
         panneauFlottant = nil
         if let monitor = observateurResignation { NSEvent.removeMonitor(monitor); observateurResignation = nil }
 
-        let panneau = NSPanel(
+        let panneau = PanneauEditable(
             contentRect: NSRect(x: 0, y: 0, width: 765, height: 500),
             styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
@@ -360,6 +360,20 @@ final class ClipboardPlugin: WidgetPlugin, DockDoorWidgetProvider {
 
     @MainActor
     func makePanelBody(dismiss: @escaping () -> Void) -> AnyView? {
-        AnyView(PanneauPressePapierSDK(moniteur: moniteur, dismiss: dismiss))
+        let ctx = ContexteFenetrePanelSDK()
+        let dismissProtege: () -> Void = {
+            ctx.annulerFermetureProgrammee()
+            let workItem = DispatchWorkItem {
+                let souris = NSEvent.mouseLocation
+                if let frame = ctx.fenetre?.frame, frame.contains(souris) { return }
+                dismiss()
+            }
+            ctx.workItemEnCours = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.20, execute: workItem)
+        }
+        return AnyView(PanneauPressePapierSDK(moniteur: moniteur,
+                                               dismiss: dismiss,
+                                               dismissProtege: dismissProtege,
+                                               contexte: ctx))
     }
 }
