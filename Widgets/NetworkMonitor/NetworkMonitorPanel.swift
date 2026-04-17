@@ -36,7 +36,6 @@ struct NetworkMonitorPanel: View {
         }
         .padding(14)
     }
-    .frame(width: 280)
     .background(
         ZStack {
             RoundedRectangle(cornerRadius: 12)
