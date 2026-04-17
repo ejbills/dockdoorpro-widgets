@@ -10,6 +10,7 @@ struct NetworkMonitorPanel: View {
     @ObservedObject private var monitor = NetworkSpeedMonitor.shared
     @State private var selectedIface: String = ""
     @State private var appeared = false
+    @State private var dropdownOpen = false
 
     private var speedUnit: String {
         WidgetDefaults.string(key: "speedUnit", widgetId: pluginId, default: "Auto")
@@ -23,73 +24,78 @@ struct NetworkMonitorPanel: View {
     private var ulColor: Color { colors.upload }
 
     var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-        header
-        GlassDivider()
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear
+                .frame(width: 280, height: 0)
 
-        VStack(alignment: .leading, spacing: 14) {
-            ifacePicker
-            liveSpeeds
-            historySection
-            totalsSection
-            interfaceSection
+            header
+            GlassDivider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    ifacePicker
+                    liveSpeeds
+                    historySection
+                    totalsSection
+                    interfaceSection
+                }
+                .padding(14)
+            }
         }
-        .padding(14)
-    }
-    .background(
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-            RoundedRectangle(cornerRadius: 12)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            dlColor.opacity(0.08),
-                            Color.clear,
-                            ulColor.opacity(0.06),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                dlColor.opacity(0.08),
+                                Color.clear,
+                                ulColor.opacity(0.06),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-        }
-    )
-    .overlay(
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.35),
-                            Color.white.opacity(0.05),
-                            Color.clear,
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
-        }
-    )
-    .shadow(color: dlColor.opacity(0.12), radius: 20, x: -4, y: 0)
-    .shadow(color: ulColor.opacity(0.10), radius: 20, x: 4, y: 0)
-    .shadow(color: .black.opacity(0.30), radius: 14, y: 6)
-    .opacity(appeared ? 1 : 0)
-    .scaleEffect(appeared ? 1 : 0.96)
-    .onAppear {
-        selectedIface = WidgetDefaults.string(
-            key: "selectedInterface",
-            widgetId: pluginId,
-            default: ""
+            }
         )
-        monitor.selectedInterface = selectedIface
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            appeared = true
+        .overlay(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.35),
+                                Color.white.opacity(0.05),
+                                Color.clear,
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+            }
+        )
+        .shadow(color: dlColor.opacity(0.12), radius: 20, x: -4, y: 0)
+        .shadow(color: ulColor.opacity(0.10), radius: 20, x: 4, y: 0)
+        .shadow(color: .black.opacity(0.30), radius: 14, y: 6)
+        .opacity(appeared ? 1 : 0)
+        .scaleEffect(appeared ? 1 : 0.96)
+        .onAppear {
+            selectedIface = WidgetDefaults.string(
+                key: "selectedInterface",
+                widgetId: pluginId,
+                default: ""
+            )
+            monitor.selectedInterface = selectedIface
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                appeared = true
+            }
         }
     }
-}
 
 
     private var header: some View {
@@ -98,7 +104,7 @@ struct NetworkMonitorPanel: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(dlColor)
 
-            Text("Network Monitor")
+            Text("Network")
                 .font(.system(size: 14, weight: .semibold))
 
             Spacer()
@@ -116,62 +122,126 @@ struct NetworkMonitorPanel: View {
         )
     }
 
+
     private var ifacePicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel("Interface")
 
-            Menu {
+            ZStack(alignment: .top) {
                 Button {
-                    pickInterface("")
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        dropdownOpen.toggle()
+                    }
                 } label: {
-                    HStack {
-                        Text("All Interfaces")
-                        if selectedIface.isEmpty { Image(systemName: "checkmark") }
+                    HStack(spacing: 6) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(dlColor)
+
+                        Text(selectedIface.isEmpty ? "All Interfaces" : prettyInterfaceName(selectedIface))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(dropdownOpen ? 180 : 0))
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(GlassCard())
                 }
+                .buttonStyle(.plain)
 
-                Divider()
+                if dropdownOpen {
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: 36)
 
-                ForEach(monitor.availableInterfaces, id: \.self) { name in
-                    Button {
-                        pickInterface(name)
-                    } label: {
-                        HStack {
-                            Text(prettyInterfaceName(name))
-                            if let ip = monitor.interfaceIPs[name] {
-                                Text("· \(ip)").foregroundStyle(.secondary)
+                        VStack(spacing: 0) {
+                            dropdownRow(
+                                name: "",
+                                label: "All Interfaces",
+                                ip: nil,
+                                isSelected: selectedIface.isEmpty
+                            )
+
+                            GlassDivider()
+
+                            ForEach(monitor.availableInterfaces, id: \.self) { name in
+                                dropdownRow(
+                                    name: name,
+                                    label: prettyInterfaceName(name),
+                                    ip: monitor.interfaceIPs[name],
+                                    isSelected: selectedIface == name
+                                )
+                                if name != monitor.availableInterfaces.last {
+                                    GlassDivider()
+                                }
                             }
-                            if selectedIface == name { Image(systemName: "checkmark") }
                         }
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.ultraThinMaterial)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(dlColor.opacity(0.05))
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(0.20), Color.white.opacity(0.04)],
+                                            startPoint: .top, endPoint: .bottom
+                                        ),
+                                        lineWidth: 0.5
+                                    )
+                            }
+                        )
+                        .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
+                            removal:   .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
+                        ))
                     }
+                    .zIndex(10)
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(dlColor)
-
-                    Text(
-                        selectedIface.isEmpty
-                            ? "All Interfaces"
-                            : prettyInterfaceName(selectedIface)
-                    )
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(GlassCard())
             }
-            .menuStyle(.borderlessButton)
         }
     }
+
+    private func dropdownRow(name: String, label: String, ip: String?, isSelected: Bool) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                pickInterface(name)
+                dropdownOpen = false
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(isSelected ? dlColor : Color.primary.opacity(0.2))
+
+                Text(label)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular, design: .monospaced))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if let ip = ip {
+                    Text(ip)
+                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(isSelected ? dlColor.opacity(0.08) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
 
     private var liveSpeeds: some View {
         HStack(spacing: 0) {
@@ -235,6 +305,7 @@ struct NetworkMonitorPanel: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
     }
+
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -416,6 +487,7 @@ private struct GlassCard: View {
         }
     }
 }
+
 
 private struct GlassDivider: View {
     var vertical: Bool = false
