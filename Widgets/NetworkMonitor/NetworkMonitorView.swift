@@ -31,15 +31,16 @@ struct NetworkMonitorView: View {
 
     private var combinedColor: Color { Color(hue: 0.58, saturation: 0.6, brightness: 0.9) }
 
-    @State private var selectedIface: String = ""
+    @State private var selectedIfaces: Set<String> = []
 
     var body: some View {
         Group {
             if isExtended { extendedLayout } else { compactLayout }
         }
         .onAppear {
-            selectedIface = WidgetDefaults.string(key: "selectedInterface", widgetId: pluginId, default: "")
-            monitor.selectedInterface = selectedIface
+            let saved = UserDefaults.standard.string(forKey: "\(pluginId).selectedInterfaces") ?? ""
+            selectedIfaces = saved.isEmpty ? [] : Set(saved.split(separator: ",").map(String.init))
+            monitor.selectedInterfaces = selectedIfaces
         }
     }
 
@@ -133,13 +134,11 @@ struct NetworkMonitorView: View {
     private func ifaceDropdown(compact: Bool) -> some View {
         Menu {
             Button {
-                pickInterface("")
+                toggleInterface("")
             } label: {
                 HStack {
                     Text("All Interfaces")
-                    if selectedIface.isEmpty {
-                        Image(systemName: "checkmark")
-                    }
+                    if selectedIfaces.isEmpty { Image(systemName: "checkmark") }
                 }
             }
 
@@ -147,17 +146,14 @@ struct NetworkMonitorView: View {
 
             ForEach(monitor.availableInterfaces, id: \.self) { name in
                 Button {
-                    pickInterface(name)
+                    toggleInterface(name)
                 } label: {
                     HStack {
                         Text(name)
                         if let ip = monitor.interfaceIPs[name] {
-                            Text("· \(ip)")
-                                .foregroundStyle(.secondary)
+                            Text("· \(ip)").foregroundStyle(.secondary)
                         }
-                        if selectedIface == name {
-                            Image(systemName: "checkmark")
-                        }
+                        if selectedIfaces.contains(name) { Image(systemName: "checkmark") }
                     }
                 }
             }
@@ -166,10 +162,15 @@ struct NetworkMonitorView: View {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: dim * 0.11, weight: .semibold))
                     .foregroundStyle(dlColor)
-                Text(selectedIface.isEmpty ? "All Interfaces" : selectedIface)
-                    .font(.system(size: dim * 0.12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                Text(selectedIfaces.isEmpty
+                    ? "All Interfaces"
+                    : selectedIfaces.count == 1
+                        ? selectedIfaces.first!
+                        : "\(selectedIfaces.count) Interfaces"
+                )
+                .font(.system(size: dim * 0.12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: dim * 0.09, weight: .semibold))
@@ -183,12 +184,17 @@ struct NetworkMonitorView: View {
         .frame(maxWidth: compact ? 160 : .infinity)
     }
 
-
-    private func pickInterface(_ name: String) {
-    	selectedIface = name
-   	monitor.selectedInterface = name
-   	UserDefaults.standard.set(name, forKey: "\(pluginId).selectedInterface")
-}
+    private func toggleInterface(_ name: String) {
+        if name.isEmpty {
+            selectedIfaces = []
+        } else if selectedIfaces.contains(name) {
+            selectedIfaces.remove(name)
+        } else {
+            selectedIfaces.insert(name)
+        }
+        monitor.selectedInterfaces = selectedIfaces
+        UserDefaults.standard.set(selectedIfaces.joined(separator: ","), forKey: "\(pluginId).selectedInterfaces")
+    }
 
     private func speedRow(arrow: String, formatted: (value: String, unit: String), color: Color, label: String) -> some View {
         HStack(spacing: dim * 0.08) {

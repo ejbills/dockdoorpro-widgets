@@ -3,10 +3,12 @@ import SwiftUI
 
 
 enum NetworkColorScheme: String, CaseIterable {
+    case none       = "None"
     case blueRed    = "Blue / Red"
     case tealPurple = "Teal / Purple"
     case custom     = "Custom"
 }
+
 
 enum NamedColor: String, CaseIterable {
     case blue   = "Blue"
@@ -42,15 +44,14 @@ struct NetworkColors {
     let upload: Color
 
     static func resolve(pluginId: String) -> NetworkColors {
-        guard WidgetDefaults.bool(key: "colorCode", widgetId: pluginId) else {
-            return NetworkColors(download: .secondary, upload: .secondary)
-        }
-
         let scheme = NetworkColorScheme(
             rawValue: WidgetDefaults.string(key: "colorScheme", widgetId: pluginId, default: NetworkColorScheme.blueRed.rawValue)
         ) ?? .blueRed
 
         switch scheme {
+        case .none:
+            return NetworkColors(download: .secondary, upload: .secondary)
+
         case .blueRed:
             return NetworkColors(download: .blue, upload: .red)
 

@@ -20,9 +20,9 @@ final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
             ),
 
             .toggle(
-                key: "colorCode",
-                label: "Color-Code Speeds",
-                defaultValue: true
+                key: "hideIP",
+                label: "Hide IP Address",
+                defaultValue: false
             ),
             .picker(
                 key: "colorScheme",
@@ -32,13 +32,13 @@ final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
             ),
             .picker(
                 key: "customDLColor",
-                label: "  ↳ Download Color (Custom only)",
+                label: "  ↳ Download Color (Custom scheme only)",
                 options: colorNames,
                 defaultValue: "Blue"
             ),
             .picker(
                 key: "customULColor",
-                label: "  ↳ Upload Color (Custom only)",
+                label: "  ↳ Upload Color (Custom scheme only)",
                 options: colorNames,
                 defaultValue: "Orange"
             ),

@@ -2,7 +2,6 @@ import Darwin
 import Foundation
 import SwiftUI
 
-
 final class NetworkSpeedMonitor: ObservableObject {
     static let shared = NetworkSpeedMonitor()
 
@@ -17,12 +16,10 @@ final class NetworkSpeedMonitor: ObservableObject {
 
     @Published var availableInterfaces: [String] = []
 
-  
-    var selectedInterface: String = "" {
+    var selectedInterfaces: Set<String> = [] {
         didSet {
             let snap = NetworkSpeedMonitor.fullSnapshot()
-            let iface = selectedInterface.isEmpty ? nil : selectedInterface
-            let s = Self.stats(from: snap, for: iface)
+            let s = Self.stats(from: snap, for: selectedInterfaces)
             sessionStartIn  = s.bytesIn
             sessionStartOut = s.bytesOut
             lastBytesIn     = s.bytesIn
@@ -33,23 +30,23 @@ final class NetworkSpeedMonitor: ObservableObject {
     @Published var interfaceIPs: [String: String] = [:]
 
     var localIP: String {
-        if selectedInterface.isEmpty { return interfaceIPs.values.first ?? "—" }
-        return interfaceIPs[selectedInterface] ?? "—"
+        if selectedInterfaces.isEmpty { return interfaceIPs.values.first ?? "—" }
+        return selectedInterfaces.compactMap { interfaceIPs[$0] }.joined(separator: ", ")
     }
 
-    private var lastBytesIn:    UInt64 = 0
-    private var lastBytesOut:   UInt64 = 0
-    private var sessionStartIn: UInt64 = 0
-    private var sessionStartOut:UInt64 = 0
+    private var lastBytesIn:     UInt64 = 0
+    private var lastBytesOut:    UInt64 = 0
+    private var sessionStartIn:  UInt64 = 0
+    private var sessionStartOut: UInt64 = 0
     private var timer: Timer?
 
     private init() {
         let snap = NetworkSpeedMonitor.fullSnapshot()
         availableInterfaces = snap.map(\.name)
-        interfaceIPs = Dictionary(uniqueKeysWithValues: snap.compactMap { e -> (String,String)? in
+        interfaceIPs = Dictionary(uniqueKeysWithValues: snap.compactMap { e -> (String, String)? in
             guard !e.ip.isEmpty else { return nil }; return (e.name, e.ip)
         })
-        let total = Self.stats(from: snap, for: nil)
+        let total = Self.stats(from: snap, for: [])
         lastBytesIn     = total.bytesIn
         lastBytesOut    = total.bytesOut
         sessionStartIn  = total.bytesIn
@@ -64,9 +61,8 @@ final class NetworkSpeedMonitor: ObservableObject {
     deinit { timer?.invalidate() }
 
     private func tick() {
-        let snap  = NetworkSpeedMonitor.fullSnapshot()
-        let iface = selectedInterface.isEmpty ? nil : selectedInterface
-        let s     = Self.stats(from: snap, for: iface)
+        let snap = NetworkSpeedMonitor.fullSnapshot()
+        let s    = Self.stats(from: snap, for: selectedInterfaces)
 
         let dl = s.bytesIn  >= lastBytesIn  ? Double(s.bytesIn  - lastBytesIn)  : 0
         let ul = s.bytesOut >= lastBytesOut ? Double(s.bytesOut - lastBytesOut) : 0
@@ -83,7 +79,7 @@ final class NetworkSpeedMonitor: ObservableObject {
 
             let names = snap.map(\.name)
             if names != availableInterfaces { availableInterfaces = names }
-            let ips = Dictionary(uniqueKeysWithValues: snap.compactMap { e -> (String,String)? in
+            let ips = Dictionary(uniqueKeysWithValues: snap.compactMap { e -> (String, String)? in
                 guard !e.ip.isEmpty else { return nil }; return (e.name, e.ip)
             })
             if ips != interfaceIPs { interfaceIPs = ips }
@@ -92,7 +88,6 @@ final class NetworkSpeedMonitor: ObservableObject {
         lastBytesIn  = s.bytesIn
         lastBytesOut = s.bytesOut
     }
-
 
     struct IfaceEntry: Equatable {
         var name: String
@@ -142,14 +137,14 @@ final class NetworkSpeedMonitor: ObservableObject {
         }
     }
 
-    private static func stats(from snap: [IfaceEntry], for iface: String?) -> (bytesIn: UInt64, bytesOut: UInt64) {
-        if let name = iface {
-            let e = snap.first { $0.name == name }
-            return (e?.bytesIn ?? 0, e?.bytesOut ?? 0)
+    private static func stats(from snap: [IfaceEntry], for selected: Set<String>) -> (bytesIn: UInt64, bytesOut: UInt64) {
+        if selected.isEmpty {
+            return snap.reduce((UInt64(0), UInt64(0))) { ($0.0 + $1.bytesIn, $0.1 + $1.bytesOut) }
         }
-        return snap.reduce((UInt64(0), UInt64(0))) { ($0.0 + $1.bytesIn, $0.1 + $1.bytesOut) }
+        return snap
+            .filter { selected.contains($0.name) }
+            .reduce((UInt64(0), UInt64(0))) { ($0.0 + $1.bytesIn, $0.1 + $1.bytesOut) }
     }
-
 
     func formattedSpeed(_ bps: Double, unit: String) -> (value: String, unit: String) {
         switch unit {

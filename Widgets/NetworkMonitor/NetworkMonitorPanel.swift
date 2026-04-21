@@ -8,7 +8,7 @@ struct NetworkMonitorPanel: View {
     let pluginId: String
 
     @ObservedObject private var monitor = NetworkSpeedMonitor.shared
-    @State private var selectedIface: String = ""
+    @State private var selectedIfaces: Set<String> = []
     @State private var appeared = false
     @State private var dropdownOpen = false
 
@@ -85,12 +85,9 @@ struct NetworkMonitorPanel: View {
         .opacity(appeared ? 1 : 0)
         .scaleEffect(appeared ? 1 : 0.96)
         .onAppear {
-            selectedIface = WidgetDefaults.string(
-                key: "selectedInterface",
-                widgetId: pluginId,
-                default: ""
-            )
-            monitor.selectedInterface = selectedIface
+            let saved = UserDefaults.standard.string(forKey: "\(pluginId).selectedInterfaces") ?? ""
+            selectedIfaces = saved.isEmpty ? [] : Set(saved.split(separator: ",").map(String.init))
+            monitor.selectedInterfaces = selectedIfaces
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 appeared = true
             }
@@ -138,11 +135,30 @@ struct NetworkMonitorPanel: View {
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(dlColor)
 
-                        Text(selectedIface.isEmpty ? "All Interfaces" : prettyInterfaceName(selectedIface))
+                        Text(selectedIfaces.isEmpty
+                            ? "All Interfaces"
+                            : selectedIfaces.count == 1
+                                ? prettyInterfaceName(selectedIfaces.first!)
+                                : "\(selectedIfaces.count) Interfaces"
+                        )
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.primary)
 
                         Spacer()
+
+                        if !selectedIfaces.isEmpty {
+                            Button {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                    selectedIfaces = []
+                                    saveAndApply()
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Color.primary.opacity(0.3))
+                            }
+                            .buttonStyle(.plain)
+                        }
 
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 10))
@@ -164,7 +180,7 @@ struct NetworkMonitorPanel: View {
                                 name: "",
                                 label: "All Interfaces",
                                 ip: nil,
-                                isSelected: selectedIface.isEmpty
+                                isSelected: selectedIfaces.isEmpty
                             )
 
                             GlassDivider()
@@ -174,7 +190,7 @@ struct NetworkMonitorPanel: View {
                                     name: name,
                                     label: prettyInterfaceName(name),
                                     ip: monitor.interfaceIPs[name],
-                                    isSelected: selectedIface == name
+                                    isSelected: selectedIfaces.contains(name)
                                 )
                                 if name != monitor.availableInterfaces.last {
                                     GlassDivider()
@@ -212,8 +228,17 @@ struct NetworkMonitorPanel: View {
     private func dropdownRow(name: String, label: String, ip: String?, isSelected: Bool) -> some View {
         Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                pickInterface(name)
-                dropdownOpen = false
+                if name.isEmpty {
+                    selectedIfaces = []
+                } else if selectedIfaces.contains(name) {
+                    selectedIfaces.remove(name)
+                } else {
+                    selectedIfaces.insert(name)
+                    if selectedIfaces == Set(monitor.availableInterfaces) {
+                        selectedIfaces = []
+                    }
+                }
+                saveAndApply()
             }
         } label: {
             HStack(spacing: 6) {
@@ -244,31 +269,46 @@ struct NetworkMonitorPanel: View {
 
 
     private var liveSpeeds: some View {
-        HStack(spacing: 0) {
-            speedBlock(symbol: "arrow.down.circle.fill", title: "Download",
-                       speed: monitor.downloadSpeed, color: dlColor)
+        VStack(spacing: 4) {
+            HStack(spacing: 0) {
+                speedBlock(symbol: "arrow.down.circle.fill", title: "Download",
+                           speed: monitor.downloadSpeed, color: dlColor)
 
-            GlassDivider(vertical: true, height: 66)
+                GlassDivider(vertical: true, height: 66)
 
-            speedBlock(symbol: "arrow.up.circle.fill", title: "Upload",
-                       speed: monitor.uploadSpeed, color: ulColor)
-        }
-        .background(
-            ZStack {
-                GlassCard()
-                HStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [dlColor.opacity(0.10), Color.clear],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    LinearGradient(
-                        colors: [Color.clear, ulColor.opacity(0.10)],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                speedBlock(symbol: "arrow.up.circle.fill", title: "Upload",
+                           speed: monitor.uploadSpeed, color: ulColor)
             }
-        )
+            .background(
+                ZStack {
+                    GlassCard()
+                    HStack(spacing: 0) {
+                        LinearGradient(
+                            colors: [dlColor.opacity(0.10), Color.clear],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                        LinearGradient(
+                            colors: [Color.clear, ulColor.opacity(0.10)],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            )
+
+            if selectedIfaces.isEmpty || selectedIfaces.count > 1 {
+                HStack(spacing: 4) {
+                    Image(systemName: "sum")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text(selectedIfaces.isEmpty
+                        ? "Sum of all interfaces"
+                        : "Sum of \(selectedIfaces.count) interfaces")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
     }
 
     private func speedBlock(symbol: String, title: String,
@@ -394,26 +434,30 @@ struct NetworkMonitorPanel: View {
 
 
     private var interfaceSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let showIP = !WidgetDefaults.bool(key: "hideIP", widgetId: pluginId)
+        return VStack(alignment: .leading, spacing: 6) {
             sectionLabel("Details")
 
             VStack(spacing: 0) {
                 infoRow(
                     label: "Interface",
-                    value: selectedIface.isEmpty ? "All" : prettyInterfaceName(selectedIface)
+                    value: selectedIfaces.isEmpty
+                        ? "All"
+                        : selectedIfaces.sorted().map { prettyInterfaceName($0) }.joined(separator: ", ")
                 )
-                GlassDivider().padding(.leading, 12)
-                infoRow(label: "Local IP", value: monitor.localIP)
+                if showIP {
+                    GlassDivider().padding(.leading, 12)
+                    infoRow(label: "Local IP", value: monitor.localIP)
+                }
             }
             .background(GlassCard())
         }
     }
 
 
-    private func pickInterface(_ name: String) {
-        selectedIface = name
-        monitor.selectedInterface = name
-        UserDefaults.standard.set(name, forKey: "\(pluginId).selectedInterface")
+    private func saveAndApply() {
+        monitor.selectedInterfaces = selectedIfaces
+        UserDefaults.standard.set(selectedIfaces.joined(separator: ","), forKey: "\(pluginId).selectedInterfaces")
     }
 
     private func prettyInterfaceName(_ iface: String) -> String {
