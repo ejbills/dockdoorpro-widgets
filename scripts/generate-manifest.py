@@ -13,6 +13,16 @@ def sha256_of_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def sha256_of_sources(widget_dir: Path) -> str:
+    """Hash all source files so the digest only changes when code changes."""
+    h = hashlib.sha256()
+    for src in sorted(widget_dir.iterdir()):
+        if src.suffix in (".swift", ".json"):
+            h.update(src.name.encode())
+            h.update(src.read_bytes())
+    return h.hexdigest()
+
+
 def main():
     root = Path(__file__).parent.parent
     widgets_dir = root / "Widgets"
@@ -49,8 +59,9 @@ def main():
             "bundleFilename": bundle_name + ".zip",
         }
 
+        entry["sha256"] = sha256_of_sources(widget_dir)
+
         if bundle_zip.exists():
-            entry["sha256"] = sha256_of_file(bundle_zip)
             entry["bundleSize"] = bundle_zip.stat().st_size
 
         manifest["widgets"].append(entry)
