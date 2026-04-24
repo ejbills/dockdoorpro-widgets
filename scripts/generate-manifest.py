@@ -59,9 +59,10 @@ def main():
             "bundleFilename": bundle_name + ".zip",
         }
 
-        entry["sha256"] = sha256_of_sources(widget_dir)
+        entry["sourceHash"] = sha256_of_sources(widget_dir)
 
         if bundle_zip.exists():
+            entry["sha256"] = sha256_of_file(bundle_zip)
             entry["bundleSize"] = bundle_zip.stat().st_size
 
         manifest["widgets"].append(entry)
