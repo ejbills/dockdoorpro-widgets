@@ -82,8 +82,8 @@ struct NetworkMonitorView: View {
     private var extendedLayout: some View {
         Group {
             if isVertical {
-                VStack(spacing: dim * 0.05) {
-                    speedRow(arrow: "arrow.down", formatted: dl, color: dlColor, label: "Download")
+                VStack(spacing: dim * 0.08) {
+                    speedColumn(arrow: "arrow.down", formatted: dl, color: dlColor, label: "Download")
                     if showHistory {
                         Sparkline(data: monitor.downloadHistory, color: dlColor)
                             .frame(height: dim * 0.15)
@@ -92,8 +92,8 @@ struct NetworkMonitorView: View {
                     Capsule()
                         .fill(Color.primary.opacity(0.25))
                         .frame(height: 1.5)
-                        .padding(.horizontal, dim * 0.02)
-                    speedRow(arrow: "arrow.up", formatted: ul, color: ulColor, label: "Upload")
+                        .padding(.horizontal, dim * 0.1)
+                    speedColumn(arrow: "arrow.up", formatted: ul, color: ulColor, label: "Upload")
                     if showHistory {
                         Sparkline(data: monitor.uploadHistory, color: ulColor)
                             .frame(height: dim * 0.15)
@@ -122,35 +122,6 @@ struct NetworkMonitorView: View {
                     }
                 }
                 .padding(dim * 0.1)
-            }
-        }
-    }
-
-    private func speedRow(arrow: String, formatted: (value: String, unit: String), color: Color, label: String) -> some View {
-        HStack(spacing: dim * 0.08) {
-            Image(systemName: arrow)
-                .font(.system(size: dim * WidgetMetrics.sfSymbolScale * 0.95, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: dim * 0.22, alignment: .center)
-
-            Text(formatted.value)
-                .font(.system(size: dim * 0.24, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-
-            Text(formatted.unit)
-                .font(.system(size: dim * 0.14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-
-            if showLabels {
-                Text(label)
-                    .font(.system(size: dim * 0.13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
             }
         }
     }
