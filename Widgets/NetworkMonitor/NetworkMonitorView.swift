@@ -1,49 +1,48 @@
 import DockDoorWidgetSDK
 import SwiftUI
 
-
 struct NetworkMonitorView: View {
-    let size:       CGSize
+    let size: CGSize
     let isVertical: Bool
-    let pluginId:   String
+    let pluginId: String
+    var monitor: NetworkSpeedMonitor
 
-    @ObservedObject private var monitor = NetworkSpeedMonitor.shared
-
-    private var speedUnit:   String { WidgetDefaults.string(key: "speedUnit",  widgetId: pluginId, default: "Auto") }
-    private var showHistory: Bool   { WidgetDefaults.bool(key: "showHistory",  widgetId: pluginId) }
-    private var showLabels:  Bool   { WidgetDefaults.bool(key: "showLabels",   widgetId: pluginId) }
+    private var speedUnit: String { WidgetDefaults.string(key: "speedUnit", widgetId: pluginId, default: "Auto") }
+    private var showHistory: Bool { WidgetDefaults.bool(key: "showHistory", widgetId: pluginId) }
+    private var showLabels: Bool { WidgetDefaults.bool(key: "showLabels", widgetId: pluginId) }
 
     private var colors: NetworkColors { NetworkColors.resolve(pluginId: pluginId) }
     private var dlColor: Color { colors.download }
-    private var ulColor: Color { colors.upload   }
+    private var ulColor: Color { colors.upload }
 
     private var dim: CGFloat { min(size.width, size.height) }
 
     private var isExtended: Bool {
         isVertical
-            ? size.height > size.width  * 1.5
-            : size.width  > size.height * 1.5
+            ? size.height > size.width * 1.5
+            : size.width > size.height * 1.5
     }
 
     private var dl: (value: String, unit: String) { monitor.formattedSpeed(monitor.downloadSpeed, unit: speedUnit) }
-    private var ul: (value: String, unit: String) { monitor.formattedSpeed(monitor.uploadSpeed,   unit: speedUnit) }
+    private var ul: (value: String, unit: String) { monitor.formattedSpeed(monitor.uploadSpeed, unit: speedUnit) }
     private var combined: (value: String, unit: String) { monitor.formattedSpeed(monitor.downloadSpeed + monitor.uploadSpeed, unit: speedUnit) }
 
-    private var combinedColor: Color { Color(hue: 0.58, saturation: 0.6, brightness: 0.9) }
-
-    @State private var selectedIfaces: Set<String> = []
-
     var body: some View {
-        Group {
-            if isExtended { extendedLayout } else { compactLayout }
+        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            Group {
+                if isExtended { extendedLayout } else { compactLayout }
+            }
+            .onChange(of: context.date) { _, _ in
+                monitor.tick()
+            }
         }
         .onAppear {
             let saved = UserDefaults.standard.string(forKey: "\(pluginId).selectedInterfaces") ?? ""
-            selectedIfaces = saved.isEmpty ? [] : Set(saved.split(separator: ",").map(String.init))
-            monitor.selectedInterfaces = selectedIfaces
+            let ifaces: Set<String> = saved.isEmpty ? [] : Set(saved.split(separator: ",").map(String.init))
+            monitor.selectedInterfaces = ifaces
+            monitor.tick()
         }
     }
-
 
     private var compactLayout: some View {
         VStack(spacing: dim * 0.08) {
@@ -80,7 +79,6 @@ struct NetworkMonitorView: View {
         .padding(dim * 0.12)
     }
 
-
     private var extendedLayout: some View {
         Group {
             if isVertical {
@@ -103,10 +101,8 @@ struct NetworkMonitorView: View {
                     }
                 }
                 .padding(dim * 0.1)
-
             } else {
                 VStack(spacing: dim * 0.05) {
-
                     HStack(alignment: .center, spacing: 0) {
                         speedColumn(arrow: "arrow.down", formatted: dl, color: dlColor, label: "Download")
                         Capsule()
@@ -119,7 +115,7 @@ struct NetworkMonitorView: View {
                     if showHistory {
                         HStack(spacing: dim * 0.06) {
                             Sparkline(data: monitor.downloadHistory, color: dlColor)
-                            Sparkline(data: monitor.uploadHistory,   color: ulColor)
+                            Sparkline(data: monitor.uploadHistory, color: ulColor)
                         }
                         .frame(height: dim * 0.18)
                         .padding(.horizontal, dim * 0.04)
@@ -128,72 +124,6 @@ struct NetworkMonitorView: View {
                 .padding(dim * 0.1)
             }
         }
-    }
-
-
-    private func ifaceDropdown(compact: Bool) -> some View {
-        Menu {
-            Button {
-                toggleInterface("")
-            } label: {
-                HStack {
-                    Text("All Interfaces")
-                    if selectedIfaces.isEmpty { Image(systemName: "checkmark") }
-                }
-            }
-
-            Divider()
-
-            ForEach(monitor.availableInterfaces, id: \.self) { name in
-                Button {
-                    toggleInterface(name)
-                } label: {
-                    HStack {
-                        Text(name)
-                        if let ip = monitor.interfaceIPs[name] {
-                            Text("· \(ip)").foregroundStyle(.secondary)
-                        }
-                        if selectedIfaces.contains(name) { Image(systemName: "checkmark") }
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.system(size: dim * 0.11, weight: .semibold))
-                    .foregroundStyle(dlColor)
-                Text(selectedIfaces.isEmpty
-                    ? "All Interfaces"
-                    : selectedIfaces.count == 1
-                        ? selectedIfaces.first!
-                        : "\(selectedIfaces.count) Interfaces"
-                )
-                .font(.system(size: dim * 0.12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: dim * 0.09, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, dim * 0.08)
-            .padding(.vertical, dim * 0.05)
-            .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: dim * 0.08))
-        }
-        .menuStyle(.borderlessButton)
-        .frame(maxWidth: compact ? 160 : .infinity)
-    }
-
-    private func toggleInterface(_ name: String) {
-        if name.isEmpty {
-            selectedIfaces = []
-        } else if selectedIfaces.contains(name) {
-            selectedIfaces.remove(name)
-        } else {
-            selectedIfaces.insert(name)
-        }
-        monitor.selectedInterfaces = selectedIfaces
-        UserDefaults.standard.set(selectedIfaces.joined(separator: ","), forKey: "\(pluginId).selectedInterfaces")
     }
 
     private func speedRow(arrow: String, formatted: (value: String, unit: String), color: Color, label: String) -> some View {
@@ -253,15 +183,15 @@ struct NetworkMonitorView: View {
 
 
 struct Sparkline: View {
-    let data:  [Double]
+    let data: [Double]
     let color: Color
 
     var body: some View {
         GeometryReader { geo in
-            let w    = geo.size.width
-            let h    = geo.size.height
+            let w = geo.size.width
+            let h = geo.size.height
             let peak = (data.max() ?? 0) > 0 ? data.max()! : 1.0
-            let pts  = points(w: w, h: h, peak: peak)
+            let pts = points(w: w, h: h, peak: peak)
 
             ZStack {
                 fillPath(pts: pts, w: w, h: h)

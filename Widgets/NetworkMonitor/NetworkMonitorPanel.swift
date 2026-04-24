@@ -2,12 +2,11 @@ import DockDoorWidgetSDK
 import SwiftUI
 import SystemConfiguration
 
-
 struct NetworkMonitorPanel: View {
     let dismiss: () -> Void
     let pluginId: String
+    var monitor: NetworkSpeedMonitor
 
-    @ObservedObject private var monitor = NetworkSpeedMonitor.shared
     @State private var selectedIfaces: Set<String> = []
     @State private var appeared = false
     @State private var dropdownOpen = false
@@ -94,7 +93,6 @@ struct NetworkMonitorPanel: View {
         }
     }
 
-
     private var header: some View {
         HStack(spacing: 8) {
             Image(systemName: "network")
@@ -118,7 +116,6 @@ struct NetworkMonitorPanel: View {
             )
         )
     }
-
 
     private var ifacePicker: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -216,7 +213,7 @@ struct NetworkMonitorPanel: View {
                         .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
-                            removal:   .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
+                            removal: .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
                         ))
                     }
                     .zIndex(10)
@@ -266,7 +263,6 @@ struct NetworkMonitorPanel: View {
         }
         .buttonStyle(.plain)
     }
-
 
     private var liveSpeeds: some View {
         VStack(spacing: 4) {
@@ -346,7 +342,6 @@ struct NetworkMonitorPanel: View {
         .padding(.vertical, 12)
     }
 
-
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel("Usage History")
@@ -391,7 +386,6 @@ struct NetworkMonitorPanel: View {
         }
     }
 
-
     private var totalsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel("Session Totals")
@@ -432,7 +426,6 @@ struct NetworkMonitorPanel: View {
         .padding(.vertical, 10)
     }
 
-
     private var interfaceSection: some View {
         let showIP = !WidgetDefaults.bool(key: "hideIP", widgetId: pluginId)
         return VStack(alignment: .leading, spacing: 6) {
@@ -453,7 +446,6 @@ struct NetworkMonitorPanel: View {
             .background(GlassCard())
         }
     }
-
 
     private func saveAndApply() {
         monitor.selectedInterfaces = selectedIfaces

@@ -1,13 +1,14 @@
 import DockDoorWidgetSDK
 import SwiftUI
 
-
 final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
-    var id:                    String { "network-monitor" }
-    var name:                  String { "Network Monitor" }
-    var iconSymbol:            String { "network" }
-    var widgetDescription:     String { "Live download & upload speeds. Hover for full details." }
+    var id: String { "network-monitor" }
+    var name: String { "Network Monitor" }
+    var iconSymbol: String { "network" }
+    var widgetDescription: String { "Live download & upload speeds. Hover for full details." }
     var supportedOrientations: [WidgetOrientation] { [.horizontal, .vertical] }
+
+    private let monitor = NetworkSpeedMonitor()
 
     func settingsSchema() -> [WidgetSetting] {
         let colorNames = NamedColor.allCases.map(\.rawValue)
@@ -18,7 +19,6 @@ final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
                 options: ["Auto", "KB/s", "MB/s"],
                 defaultValue: "Auto"
             ),
-
             .toggle(
                 key: "hideIP",
                 label: "Hide IP Address",
@@ -32,13 +32,13 @@ final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
             ),
             .picker(
                 key: "customDLColor",
-                label: "  ↳ Download Color (Custom scheme only)",
+                label: "  \u{21b3} Download Color (Custom scheme only)",
                 options: colorNames,
                 defaultValue: "Blue"
             ),
             .picker(
                 key: "customULColor",
-                label: "  ↳ Upload Color (Custom scheme only)",
+                label: "  \u{21b3} Upload Color (Custom scheme only)",
                 options: colorNames,
                 defaultValue: "Orange"
             ),
@@ -47,11 +47,11 @@ final class NetworkMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
 
     @MainActor
     func makeBody(size: CGSize, isVertical: Bool) -> AnyView {
-        AnyView(NetworkMonitorView(size: size, isVertical: isVertical, pluginId: id))
+        AnyView(NetworkMonitorView(size: size, isVertical: isVertical, pluginId: id, monitor: monitor))
     }
 
     @MainActor
     func makePanelBody(dismiss: @escaping () -> Void) -> AnyView? {
-        AnyView(NetworkMonitorPanel(dismiss: dismiss, pluginId: id))
+        AnyView(NetworkMonitorPanel(dismiss: dismiss, pluginId: id, monitor: monitor))
     }
 }
