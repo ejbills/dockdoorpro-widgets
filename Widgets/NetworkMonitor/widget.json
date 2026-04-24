@@ -1,0 +1,16 @@
+{
+    "id": "network-monitor",
+    "name": "Network Monitor",
+    "author": "masong1056",
+    "description": "Live download & upload speeds with interface switching and a hover panel for full network details.",
+    "iconSymbol": "network",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "NetworkMonitorPlugin",
+    "sources": [
+        "NetworkMonitorPlugin.swift",
+        "NetworkColorScheme.swift",
+        "NetworkSpeedMonitor.swift",
+        "NetworkMonitorView.swift",
+        "NetworkMonitorPanel.swift"
+    ]
+}
