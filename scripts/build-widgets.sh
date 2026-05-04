@@ -99,6 +99,7 @@ for WIDGET_DIR in "${WIDGET_DIRS[@]}"; do
             -o "$BUNDLE_MACOS/${WIDGET_NAME}_${arch}" \
             -module-name "$WIDGET_NAME" \
             -I "$SDK_OUT/$arch" \
+            -lsqlite3 \
             -Xlinker -undefined -Xlinker dynamic_lookup \
             "${SOURCE_FILES[@]}" 2>&1
     done
