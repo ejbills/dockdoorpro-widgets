@@ -1,0 +1,10 @@
+{
+    "id": "things-today",
+    "name": "Things Today",
+    "author": "renshuuuu",
+    "description": "Shows Today's Things 3 tasks with Upcoming and Deadlines in the panel",
+    "iconSymbol": "checklist",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "ThingsTodayPlugin",
+    "sources": ["ThingsDatabase.swift", "ThingsTodayView.swift", "ThingsTodayPanel.swift", "ThingsTodayPlugin.swift"]
+}
