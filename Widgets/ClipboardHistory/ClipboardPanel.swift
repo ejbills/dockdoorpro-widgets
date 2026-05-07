@@ -30,8 +30,20 @@ private struct ClipboardPanelContent: View {
 
     @State private var selected: ClipboardItem?
     @State private var activeFilter: ClipboardFilter = .all
+    @State private var searchActive = false
+    @State private var searchText = ""
 
-    private var filtered: [ClipboardItem] { manager.filteredItems(activeFilter) }
+    private var filtered: [ClipboardItem] {
+        let base = manager.filteredItems(activeFilter)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return base }
+        return base.filter { item in
+            item.displayText.lowercased().contains(query)
+                || item.typeLabel.lowercased().contains(query)
+                || item.source.lowercased().contains(query)
+        }
+    }
+
     private var filteredPinned: [ClipboardItem] { filtered.filter { $0.isPinned } }
     private var filteredUnpinned: [ClipboardItem] { filtered.filter { !$0.isPinned } }
 
@@ -54,10 +66,35 @@ private struct ClipboardPanelContent: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            SegmentedFilterControl(activeFilter: $activeFilter)
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 6)
+            HStack(spacing: 6) {
+                if searchActive {
+                    SearchField(text: $searchText, isActive: $searchActive)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.85, anchor: .leading).combined(with: .opacity),
+                            removal: .scale(scale: 0.85, anchor: .leading).combined(with: .opacity)
+                        ))
+                } else {
+                    SegmentedFilterControl(activeFilter: $activeFilter)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.85, anchor: .trailing).combined(with: .opacity),
+                            removal: .scale(scale: 0.85, anchor: .trailing).combined(with: .opacity)
+                        ))
+                    SearchButton {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                            searchActive = true
+                        }
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
+            .onChange(of: searchActive) { _, active in
+                if !active {
+                    searchText = ""
+                }
+            }
 
             if filtered.isEmpty {
                 emptyState
@@ -86,6 +123,7 @@ private struct ClipboardPanelContent: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 10)
                     .animation(.easeInOut(duration: 0.18), value: activeFilter)
+                    .animation(.easeInOut(duration: 0.18), value: searchText)
                 }
                 .overlay(alignment: .top) {
                     LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
@@ -148,7 +186,11 @@ private struct ClipboardPanelContent: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Spacer()
-            if activeFilter != .all {
+            if searchActive, !searchText.isEmpty {
+                Image(systemName: "magnifyingglass")
+                    .font(.title2)
+                    .foregroundStyle(.tertiary)
+            } else if activeFilter != .all {
                 Image(systemName: activeFilter.icon)
                     .font(.title2)
                     .foregroundStyle(.tertiary)
@@ -410,6 +452,82 @@ private struct SegmentedFilterControl: View {
             }
         }
         .frame(height: 32)
+    }
+}
+
+// MARK: - Search controls
+
+private struct SearchButton: View {
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isHovered ? Color.accentColor : Color.secondary)
+                .frame(width: 30, height: 30)
+                .background(
+                    Circle()
+                        .fill(isHovered ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.spring(response: 0.28, dampingFraction: 0.78), value: isHovered)
+    }
+}
+
+private struct SearchField: View {
+    @Binding var text: String
+    @Binding var isActive: Bool
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("Search...", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused($isFocused)
+
+            Button {
+                if text.isEmpty {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                        isActive = false
+                    }
+                } else {
+                    text = ""
+                }
+            } label: {
+                Image(systemName: text.isEmpty ? "xmark" : "xmark.circle.fill")
+                    .font(.system(size: text.isEmpty ? 10 : 12, weight: text.isEmpty ? .semibold : .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 32)
+        .background(RoundedRectangle(cornerRadius: 20).fill(Color.primary.opacity(0.08)))
+        .frame(maxWidth: .infinity)
+        .onAppear {
+            DispatchQueue.main.async { isFocused = true }
+        }
+        .onExitCommand {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                if text.isEmpty {
+                    isActive = false
+                } else {
+                    text = ""
+                }
+            }
+        }
     }
 }
 
