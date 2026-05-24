@@ -2,12 +2,64 @@
   "schemaVersion": 2,
   "widgets": [
     {
+      "id": "clipboard-history",
+      "name": "Clipboard",
+      "author": "Harut12345",
+      "description": "Quick access to clipboard history with preview",
+      "iconSymbol": "list.bullet.clipboard",
+      "orientations": [
+        "horizontal",
+        "vertical"
+      ],
+      "bundleFilename": "ClipboardHistory.bundle.zip",
+      "sourceHash": "b47129f2688d9d0552ae334e04866b649f6ff79fde0b0fa02e27694e7f8b243f",
+      "sha256": "a48cafa9c41513b26d9d1bfc43c3044db14a220ec9f71d9cfc08c6e2cb3934d8",
+      "bundleSize": 642238
+    },
+    {
+      "id": "network-monitor",
+      "name": "Network Monitor",
+      "author": "masong1056",
+      "description": "Live download & upload speeds with interface switching and a hover panel for full network details.",
+      "iconSymbol": "network",
+      "orientations": [
+        "horizontal",
+        "vertical"
+      ],
+      "bundleFilename": "NetworkMonitor.bundle.zip",
+      "sourceHash": "7512cb5a4a64a5b64b42ecab62ab2bdfdc30f542e9b467b21246ea237a9162c0",
+      "sha256": "abb527a7b9f1c40678f324d3160773707b53f9cf50273ae91ff8ab7fb3540921",
+      "bundleSize": 503110
+    },
+    {
       "id": "storage-monitor",
       "name": "Storage",
       "author": "example",
       "description": "Shows available disk space with a usage ring",
       "iconSymbol": "internaldrive",
-      "bundleFilename": "StorageMonitor.bundle.zip"
+      "orientations": [
+        "horizontal",
+        "vertical"
+      ],
+      "bundleFilename": "StorageMonitor.bundle.zip",
+      "sourceHash": "90f3d7f5a58dbbf7371fbe0064a08058776f0e812590d73713e9135f92ccc5e9",
+      "sha256": "71a16ae0d334e20d67669740ed8b2fcdf461031e906fab5531a9b0aee6b48b19",
+      "bundleSize": 128405
+    },
+    {
+      "id": "tesla-charger",
+      "name": "Tesla Charger",
+      "author": "appleforever11",
+      "description": "Shows Tesla charging status and sends Fleet API charging commands",
+      "iconSymbol": "bolt.car.fill",
+      "orientations": [
+        "horizontal",
+        "vertical"
+      ],
+      "bundleFilename": "TeslaCharger.bundle.zip",
+      "sourceHash": "ff773734badaa64f54a18204e5e5f011875da922f973f3c6ab0fc628882c60f4",
+      "sha256": "51268f4a42780ff18ddcc78e28509f70252abd9299534f6cfb0845ab6e4bbe7e",
+      "bundleSize": 457424
     }
   ]
 }

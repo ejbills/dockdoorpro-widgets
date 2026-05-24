@@ -1,0 +1,10 @@
+{
+    "id": "tesla-charger",
+    "name": "Tesla Charger",
+    "author": "appleforever11",
+    "description": "Shows Tesla charging status and sends Fleet API charging commands",
+    "iconSymbol": "bolt.car.fill",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "TeslaChargerPlugin",
+    "sources": ["TeslaChargerPlugin.swift"]
+}
