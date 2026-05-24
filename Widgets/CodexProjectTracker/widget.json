@@ -1,0 +1,10 @@
+{
+    "id": "codex-project-tracker",
+    "name": "Codex Tracker",
+    "author": "appleforever11",
+    "description": "Shows recent Codex projects and chat activity",
+    "iconSymbol": "bubble.left.and.text.bubble.right.fill",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "CodexProjectTrackerPlugin",
+    "sources": ["CodexProjectTracker.swift"]
+}
