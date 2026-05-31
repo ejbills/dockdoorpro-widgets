@@ -1,0 +1,10 @@
+{
+    "id": "folder-stack",
+    "name": "Folder Stack",
+    "author": "woojin444",
+    "description": "Pin a folder and mimics native folder stack",
+    "iconSymbol": "folder.fill",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "FolderStackPlugin",
+    "sources": ["FolderStackPlugin.swift", "FolderStackModel.swift", "FolderStackView.swift", "FolderStackPanel.swift"]
+}
