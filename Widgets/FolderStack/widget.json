@@ -4,7 +4,7 @@
     "author": "woojin444",
     "description": "Pin a folder and mimics native folder stack",
     "iconSymbol": "folder.fill",
-    "orientations": ["horizontal", "vertical"],
+    "orientations": ["horizontal"],
     "principalClass": "FolderStackPlugin",
     "sources": ["FolderStackPlugin.swift", "FolderStackModel.swift", "FolderStackView.swift", "FolderStackPanel.swift"]
 }
