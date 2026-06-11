@@ -1,6 +1,5 @@
 import SwiftUI
 
-@MainActor
 final class SimpleSearchKeyboardCapture: NSObject, NSTextFieldDelegate {
     private var panel: KeyboardCapturePanel?
     private var field: NSTextField?
@@ -110,7 +109,7 @@ final class SimpleSearchKeyboardCapture: NSObject, NSTextFieldDelegate {
         return false
     }
 
-    isolated deinit {
+    deinit {
         stop()
     }
 

@@ -100,9 +100,4 @@ final class SimpleSearchModel {
             self.reset()
         }
     }
-
-    isolated deinit {
-        eraseTask?.cancel()
-        keyboardCapture.stop()
-    }
 }
