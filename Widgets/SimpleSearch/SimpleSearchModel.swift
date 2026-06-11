@@ -1,7 +1,6 @@
 import Observation
 import SwiftUI
 
-@MainActor
 @Observable
 final class SimpleSearchModel {
     var text = ""
@@ -59,7 +58,7 @@ final class SimpleSearchModel {
         pendingSubmission = nil
     }
 
-    func startErasing(visibleText: String, completion: @escaping @MainActor () -> Void) {
+    func startErasing(visibleText: String, completion: @escaping () -> Void) {
         eraseTask?.cancel()
 
         guard !visibleText.isEmpty else {
