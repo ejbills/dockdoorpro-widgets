@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SimpleSearchPanelView: View {
     let widgetId: String
@@ -7,7 +8,8 @@ struct SimpleSearchPanelView: View {
     @Environment(\.openURL) private var openURL
     @State private var query = ""
     @State private var isSubmitting = false
-    @FocusState private var isFocused: Bool
+    @State private var isHoveringClear = false
+    @State private var isHoveringSearch = false
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -15,30 +17,45 @@ struct SimpleSearchPanelView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField("Search...", text: $query)
+            TextField("Search or URL", text: $query)
                 .textFieldStyle(.plain)
-                .focused($isFocused)
+                .font(.title3)
+                .foregroundStyle(.white)
                 .onSubmit(submit)
-            .frame(height: 22)
+                .frame(maxWidth: .infinity)
+                .frame(height: 26)
+                .background(FocusOnAppearView())
 
             if !query.isEmpty && !isSubmitting {
                 Button("Clear Search", systemImage: "xmark.circle.fill") {
                     query = ""
                 }
                 .labelStyle(.iconOnly)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(isHoveringClear ? Color.white : Color.white.opacity(0.4))
                 .buttonStyle(.plain)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                .onHover { isHoveringClear = $0 }
+                .animation(.easeOut(duration: 0.15), value: isHoveringClear)
             }
 
-            Button("Search", systemImage: isSubmitting ? "magnifyingglass.circle.fill" : "magnifyingglass", action: submit)
+            Button("Search", systemImage: isSubmitting ? "magnifyingglass.circle.fill" : "magnifyingglass.circle", action: submit)
                 .labelStyle(.iconOnly)
-                .foregroundStyle(trimmedQuery.isEmpty ? .tertiary : .primary)
+                .foregroundStyle(
+                    trimmedQuery.isEmpty
+                        ? Color.white.opacity(0.3)
+                        : isHoveringSearch ? Color.white : Color.white.opacity(0.6)
+                )
                 .scaleEffect(isSubmitting ? 1.3 : 1.0)
                 .rotationEffect(.degrees(isSubmitting ? 360 : 0))
-                .animation(.spring(response: 0.35, dampingFraction: 0.6), value: isSubmitting)
+                .animation(.spring(response: 0.20, dampingFraction: 0.6), value: isSubmitting)
                 .buttonStyle(.plain)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
                 .disabled(trimmedQuery.isEmpty)
+                .onHover { isHoveringSearch = $0 }
+                .animation(.easeOut(duration: 0.15), value: isHoveringSearch)
         }
         .background {
             Button("Cancel", action: dismiss)
@@ -47,27 +64,10 @@ struct SimpleSearchPanelView: View {
                 .opacity(0)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: .rect(cornerRadius: 10))
-        .padding(12)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
         .frame(width: 320)
         .animation(.easeOut(duration: 0.15), value: isSubmitting)
-        .task {
-            await focusField()
-        }
-    }
-
-    private func focusField() async {
-        for delay in [0, 50, 150, 300] {
-            if delay > 0 {
-                try? await Task.sleep(for: .milliseconds(delay))
-            }
-
-            isFocused = false
-            await Task.yield()
-            isFocused = true
-        }
     }
 
     private func submit() {
@@ -78,7 +78,7 @@ struct SimpleSearchPanelView: View {
         }
 
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(for: .milliseconds(250))
             if let url = searchURL(for: query, widgetId: widgetId) {
                 openURL(url)
             }
@@ -86,5 +86,49 @@ struct SimpleSearchPanelView: View {
             isSubmitting = false
             dismiss()
         }
+    }
+}
+
+private struct FocusOnAppearView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        FocusProxyView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class FocusProxyView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        guard let window else { return }
+
+        let focus = {
+            if let field = self.enclosingTextField() {
+                window.makeKeyAndOrderFront(nil)
+                window.makeFirstResponder(field)
+            }
+        }
+
+        focus()
+
+        for delay in [50, 150, 300] {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(delay))
+                focus()
+            }
+        }
+    }
+
+    private func enclosingTextField() -> NSTextField? {
+        var view: NSView? = superview
+        while let v = view {
+            if let field = v as? NSTextField { return field }
+            for sub in v.subviews {
+                if let field = sub as? NSTextField { return field }
+            }
+            view = v.superview
+        }
+        return nil
     }
 }

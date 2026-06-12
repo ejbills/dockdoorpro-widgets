@@ -15,8 +15,14 @@ final class SimpleSearchPlugin: WidgetPlugin, DockDoorWidgetProvider {
             .picker(
                 key: "engine",
                 label: "Search Engine",
-                options: ["Google", "DuckDuckGo", "Bing"],
+                options: ["Google", "DuckDuckGo", "Bing", "Yahoo", "Qwant", "Kagi", "Brave", "Ecosia", "Yandex", "YouTube"],
                 defaultValue: "Google"
+            ),
+            .textField(
+                key: "customEngineURL",
+                label: "Custom Search Engine URL with %s in place of search term",
+                placeholder: "https://ask.com/web?q=%s",
+                defaultValue: ""
             ),
         ]
     }
