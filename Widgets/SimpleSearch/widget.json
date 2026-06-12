@@ -1,0 +1,21 @@
+{
+    "id": "simple-search",
+    "name": "Search",
+    "author": "Harut12345",
+    "description": "Type a search or URL and open it in your browser.",
+    "iconSymbol": "magnifyingglass",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "SimpleSearchPlugin",
+    "sources": [
+        "SimpleSearchPlugin.swift",
+        "SimpleSearchModel.swift",
+        "SimpleSearchLayout.swift",
+        "SimpleSearchActions.swift",
+        "SimpleSearchWidgetView.swift",
+        "SimpleSearchPanelView.swift",
+        "InvisibleSearchCaptureView.swift",
+        "SimpleSearchKeyboardCapture.swift",
+        "TextWithCursor.swift",
+        "VerticalTextWithCursor.swift"
+    ]
+}
