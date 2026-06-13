@@ -24,13 +24,13 @@ final class CodexProjectTrackerPlugin: WidgetPlugin, DockDoorWidgetProvider {
         [
             .textField(
                 key: "projectsRoot",
-                label: "Codex Projects Folder",
-                placeholder: "~/Library/Mobile Documents/com~apple~CloudDocs/Codex Projects",
+                label: "Codex Sessions Folder",
+                placeholder: "~/.codex/sessions",
                 defaultValue: CodexTrackerStore.defaultProjectsRoot.path
             ),
             .slider(
                 key: "recentLimit",
-                label: "Recent Project Count",
+                label: "Recent Session Count",
                 range: 3...10,
                 step: 1,
                 defaultValue: 5
@@ -46,9 +46,10 @@ final class CodexProjectTrackerPlugin: WidgetPlugin, DockDoorWidgetProvider {
 private struct CodexTrackerCompactView: View {
     let size: CGSize
     let isVertical: Bool
-    @State private var snapshot = CodexTrackerStore.snapshot()
+    @State private var snapshot = CodexSnapshot.empty
 
     private var dim: CGFloat { min(size.width, size.height) }
+    private var iconWidth: CGFloat { dim * WidgetMetrics.sfSymbolScale * 0.8 }
     private var isExtended: Bool {
         isVertical ? size.height > size.width * 1.5 : size.width > size.height * 1.5
     }
@@ -63,7 +64,7 @@ private struct CodexTrackerCompactView: View {
         }
         .task {
             while !Task.isCancelled {
-                snapshot = CodexTrackerStore.snapshot()
+                snapshot = await CodexTrackerStore.snapshot()
                 try? await Task.sleep(for: .seconds(20))
             }
         }
@@ -72,11 +73,13 @@ private struct CodexTrackerCompactView: View {
     private var compactLayout: some View {
         VStack(spacing: 1) {
             Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                .font(.system(size: dim * 0.34, weight: .semibold))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: iconWidth)
             Text("Codex")
-                .font(.system(size: dim * 0.2, weight: .bold))
+                .font(.caption.weight(.bold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.5)
         }
         .foregroundStyle(.primary)
     }
@@ -86,13 +89,17 @@ private struct CodexTrackerCompactView: View {
             if isVertical {
                 VStack(spacing: dim * 0.12) {
                     Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .font(.system(size: dim * 0.34, weight: .semibold))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: iconWidth)
                     projectLabels(alignment: .center)
                 }
             } else {
                 HStack(spacing: dim * 0.12) {
                     Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .font(.system(size: dim * 0.36, weight: .semibold))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: iconWidth)
                     projectLabels(alignment: .leading)
                 }
             }
@@ -104,19 +111,21 @@ private struct CodexTrackerCompactView: View {
         HStack(spacing: 6) {
             VStack(alignment: alignment, spacing: 0) {
                 Text("Codex")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
                 Text(snapshot.headline)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            .minimumScaleFactor(0.5)
         }
     }
 }
 
 private struct CodexTrackerPanelView: View {
     let dismiss: () -> Void
-    @State private var snapshot = CodexTrackerStore.snapshot()
+    @State private var snapshot = CodexSnapshot.empty
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -133,34 +142,37 @@ private struct CodexTrackerPanelView: View {
 
             HStack(spacing: 10) {
                 StatPill(title: "Projects", value: "\(snapshot.projectCount)")
-                StatPill(title: "Active", value: "\(snapshot.activeCount)")
-                StatPill(title: "Chats", value: "\(snapshot.chatCount)")
+                StatPill(title: "Recent", value: "\(snapshot.activeCount)")
+                StatPill(title: "Sessions", value: "\(snapshot.chatCount)")
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Recent Projects")
-                    .font(.system(size: 12, weight: .semibold))
+                Text("Recent Sessions")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
-                ForEach(snapshot.projects) { project in
+                ForEach(snapshot.sessions) { session in
                     HStack(spacing: 8) {
-                        Image(systemName: project.isActive ? "circle.fill" : "circle")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(project.isActive ? .green : .secondary)
+                        Image(systemName: session.isActive ? "circle.fill" : "circle")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(session.isActive ? .green : .secondary)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(project.name)
-                                .font(.system(size: 12, weight: .semibold))
+                            Text(session.projectName)
+                                .font(.caption.weight(.semibold))
                                 .lineLimit(1)
-                            Text(project.relativeActivity)
-                                .font(.system(size: 10))
+                            Text(session.title ?? session.relativeActivity)
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                         Spacer()
+                        Text(session.relativeActivity)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        NSWorkspace.shared.open(project.url)
+                        NSWorkspace.shared.open(session.projectURL)
                     }
                 }
             }
@@ -169,10 +181,10 @@ private struct CodexTrackerPanelView: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Latest Chat")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(latest)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .lineLimit(2)
                 }
             }
@@ -180,7 +192,7 @@ private struct CodexTrackerPanelView: View {
         .padding(14)
         .frame(width: 320)
         .task {
-            snapshot = CodexTrackerStore.snapshot()
+            snapshot = await CodexTrackerStore.snapshot()
         }
     }
 }
@@ -192,9 +204,9 @@ private struct StatPill: View {
     var body: some View {
         VStack(spacing: 1) {
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.title3.weight(.bold).monospacedDigit())
             Text(title)
-                .font(.system(size: 9, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -210,6 +222,17 @@ private struct CodexSnapshot {
     var headline: String
     var latestChat: String?
     var projects: [CodexProject]
+    var sessions: [CodexSession]
+
+    static let empty = CodexSnapshot(
+        projectCount: 0,
+        activeCount: 0,
+        chatCount: 0,
+        headline: "Loading",
+        latestChat: nil,
+        projects: [],
+        sessions: []
+    )
 }
 
 private struct CodexProject: Identifiable {
@@ -226,24 +249,56 @@ private struct CodexProject: Identifiable {
     }
 }
 
+private struct CodexSession: Identifiable {
+    let id: String
+    let url: URL
+    let projectName: String
+    let projectURL: URL
+    let modified: Date
+    let title: String?
+    let isActive: Bool
+
+    var relativeActivity: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: modified, relativeTo: Date())
+    }
+}
+
 private enum CodexTrackerStore {
     static let defaultProjectsRoot = URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Codex Projects")
+        .appendingPathComponent(".codex/sessions")
 
-    static func snapshot() -> CodexSnapshot {
-        let projectsRoot = configuredProjectsRoot()
-        let projects = recentProjects(in: projectsRoot)
-        let chats = recentChatTitles()
-        let activeCount = projects.filter(\.isActive).count
-        let headline = projects.first?.name ?? "No projects"
+    private static let codexHome = URL(fileURLWithPath: NSHomeDirectory())
+        .appendingPathComponent(".codex")
+
+    static func snapshot() async -> CodexSnapshot {
+        await Task.detached(priority: .utility) {
+            buildSnapshot()
+        }.value
+    }
+
+    private static func buildSnapshot() -> CodexSnapshot {
+        let sessionsRoot = configuredProjectsRoot()
+        let sessionFiles = sessionFiles(in: sessionsRoot)
+        let records = sessionFiles.prefix(500).compactMap { file -> CodexSessionRecord? in
+            guard let metadata = sessionMetadata(from: file.url) else { return nil }
+            return CodexSessionRecord(file: file, metadata: metadata)
+        }
+        let sessions = recentSessions(from: records)
+        let projects = recentProjects(from: records)
+        let latestChat = latestHistoryPrompt()
+        let activeCount = sessions.filter(\.isActive).count
+        let headline = sessions.first?.projectName ?? projects.first?.name ?? "No sessions"
 
         return CodexSnapshot(
             projectCount: projects.count,
             activeCount: activeCount,
-            chatCount: chats.count,
+            chatCount: sessionFiles.count,
             headline: headline,
-            latestChat: chats.first,
-            projects: projects
+            latestChat: latestChat,
+            projects: projects,
+            sessions: sessions
         )
     }
 
@@ -257,52 +312,220 @@ private enum CodexTrackerStore {
         return URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
     }
 
-    private static func recentProjects(in root: URL) -> [CodexProject] {
-        let limit = max(3, min(10, Int(WidgetDefaults.double(
+    private static func recentLimit() -> Int {
+        max(3, min(10, Int(WidgetDefaults.double(
             key: "recentLimit",
             widgetId: "codex-project-tracker",
             default: 5
         ))))
+    }
 
-        let urls = (try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )) ?? []
+    private static func recentProjects(from sessions: [CodexSessionRecord]) -> [CodexProject] {
+        var projectsByPath: [String: CodexProject] = [:]
 
-        return urls.compactMap { url -> CodexProject? in
-            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey])
-            guard values?.isDirectory == true else { return nil }
-            let modified = values?.contentModificationDate ?? .distantPast
-            return CodexProject(
-                id: url.path,
-                name: url.lastPathComponent,
-                url: url,
+        for session in sessions {
+            let projectURL = URL(fileURLWithPath: session.metadata.cwd).standardizedFileURL
+            let path = projectURL.path
+            let modified = session.metadata.timestamp ?? session.file.modified
+            let existing = projectsByPath[path]
+
+            if existing == nil || modified > existing!.modified {
+                projectsByPath[path] = CodexProject(
+                    id: path,
+                    name: projectURL.lastPathComponent.isEmpty ? path : projectURL.lastPathComponent,
+                    url: projectURL,
+                    modified: modified,
+                    isActive: Date().timeIntervalSince(modified) < 60 * 60 * 24 * 7
+                )
+            }
+        }
+
+        return projectsByPath.values
+            .sorted { $0.modified > $1.modified }
+            .prefix(recentLimit())
+            .map { $0 }
+    }
+
+    private static func recentSessions(from sessionRecords: [CodexSessionRecord]) -> [CodexSession] {
+        var sessions: [CodexSession] = []
+
+        for record in sessionRecords {
+            let projectURL = URL(fileURLWithPath: record.metadata.cwd).standardizedFileURL
+            let modified = record.metadata.timestamp ?? record.file.modified
+            let projectName = projectURL.lastPathComponent.isEmpty ? projectURL.path : projectURL.lastPathComponent
+
+            sessions.append(CodexSession(
+                id: record.metadata.id ?? record.file.url.path,
+                url: record.file.url,
+                projectName: projectName,
+                projectURL: projectURL,
                 modified: modified,
+                title: sessionTitle(from: record.file.url),
                 isActive: Date().timeIntervalSince(modified) < 60 * 60 * 24 * 7
-            )
+            ))
+
+            if sessions.count >= recentLimit() {
+                break
+            }
+        }
+
+        return sessions
+    }
+
+    private static func sessionFiles(in root: URL) -> [CodexSessionFile] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        return enumerator.compactMap { item -> CodexSessionFile? in
+            guard let url = item as? URL, url.pathExtension == "jsonl" else { return nil }
+            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey])
+            guard values?.isRegularFile == true else { return nil }
+            return CodexSessionFile(url: url, modified: values?.contentModificationDate ?? .distantPast)
         }
         .sorted { $0.modified > $1.modified }
-        .prefix(limit)
-        .map { $0 }
     }
 
-    private static func recentChatTitles() -> [String] {
-        let memoryRoot = URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent(".codex/memories/MEMORY.md")
+    private static func sessionMetadata(from url: URL) -> CodexSessionMetadata? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
 
-        guard let text = try? String(contentsOf: memoryRoot, encoding: .utf8) else {
-            return []
+        guard let data = try? handle.read(upToCount: 64 * 1024),
+              let prefix = String(data: data, encoding: .utf8)
+        else { return nil }
+
+        let decoder = JSONDecoder()
+
+        for line in prefix.split(separator: "\n").prefix(20) {
+            guard let lineData = String(line).data(using: .utf8),
+                  let envelope = try? decoder.decode(CodexSessionEnvelope.self, from: lineData),
+                  envelope.type == "session_meta",
+                  let cwd = envelope.payload.cwd,
+                  !cwd.isEmpty
+            else { continue }
+
+            return CodexSessionMetadata(
+                id: envelope.payload.id,
+                cwd: cwd,
+                timestamp: parseCodexDate(envelope.payload.timestamp ?? envelope.timestamp)
+            )
         }
 
-        return text
-            .split(separator: "\n")
-            .compactMap { line -> String? in
-                guard line.hasPrefix("- ") else { return nil }
-                let title = line.dropFirst(2).trimmingCharacters(in: .whitespaces)
-                return title.isEmpty ? nil : title
-            }
-            .suffix(8)
-            .reversed()
+        return nil
     }
+
+    private static func sessionTitle(from url: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+
+        guard let data = try? handle.read(upToCount: 256 * 1024),
+              let prefix = String(data: data, encoding: .utf8)
+        else { return nil }
+
+        let decoder = JSONDecoder()
+
+        for line in prefix.split(separator: "\n").prefix(80) {
+            guard let lineData = String(line).data(using: .utf8),
+                  let envelope = try? decoder.decode(CodexEventEnvelope.self, from: lineData),
+                  envelope.type == "event_msg",
+                  envelope.payload.type == "user_message"
+            else { continue }
+
+            let title = (envelope.payload.message ?? envelope.payload.text ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+
+            if !title.isEmpty {
+                return title.count > 96 ? String(title.prefix(96)) + "..." : title
+            }
+        }
+
+        return nil
+    }
+
+    private static func latestHistoryPrompt() -> String? {
+        let historyURL = codexHome.appendingPathComponent("history.jsonl")
+        guard let handle = try? FileHandle(forReadingFrom: historyURL) else { return nil }
+        defer { try? handle.close() }
+
+        let fileSize = (try? handle.seekToEnd()) ?? 0
+        let readSize: UInt64 = min(fileSize, 256 * 1024)
+        try? handle.seek(toOffset: fileSize - readSize)
+
+        guard let data = try? handle.read(upToCount: Int(readSize)),
+              let text = String(data: data, encoding: .utf8)
+        else { return nil }
+
+        let decoder = JSONDecoder()
+
+        for line in text.split(separator: "\n").reversed() {
+            guard let data = String(line).data(using: .utf8),
+                  let entry = try? decoder.decode(CodexHistoryEntry.self, from: data)
+            else { continue }
+
+            let prompt = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !prompt.isEmpty {
+                return prompt.count > 160 ? String(prompt.prefix(160)) + "..." : prompt
+            }
+        }
+
+        return nil
+    }
+
+    private static func parseCodexDate(_ value: String?) -> Date? {
+        guard let value else { return nil }
+
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractionalFormatter.date(from: value) {
+            return date
+        }
+
+        return ISO8601DateFormatter().date(from: value)
+    }
+}
+
+private struct CodexSessionFile {
+    let url: URL
+    let modified: Date
+}
+
+private struct CodexSessionRecord {
+    let file: CodexSessionFile
+    let metadata: CodexSessionMetadata
+}
+
+private struct CodexSessionMetadata {
+    let id: String?
+    let cwd: String
+    let timestamp: Date?
+}
+
+private struct CodexSessionEnvelope: Decodable {
+    let timestamp: String?
+    let type: String
+    let payload: Payload
+
+    struct Payload: Decodable {
+        let id: String?
+        let timestamp: String?
+        let cwd: String?
+    }
+}
+
+private struct CodexEventEnvelope: Decodable {
+    let type: String
+    let payload: Payload
+
+    struct Payload: Decodable {
+        let type: String?
+        let message: String?
+        let text: String?
+    }
+}
+
+private struct CodexHistoryEntry: Decodable {
+    let text: String
 }
