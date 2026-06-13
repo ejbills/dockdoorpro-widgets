@@ -10,6 +10,13 @@ func searchURL(for query: String, widgetId: String) -> URL? {
     }
 
     let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmedQuery
+
+    let customURL = WidgetDefaults.string(key: "customEngineURL", widgetId: widgetId)
+    if !customURL.isEmpty {
+        let raw = customURL.replacingOccurrences(of: "%s", with: encodedQuery)
+        return URL(string: raw)
+    }
+
     let engine = WidgetDefaults.string(key: "engine", widgetId: widgetId, default: "Google")
 
     let rawURL = switch engine {
@@ -17,6 +24,20 @@ func searchURL(for query: String, widgetId: String) -> URL? {
         "https://duckduckgo.com/?q=\(encodedQuery)"
     case "Bing":
         "https://www.bing.com/search?q=\(encodedQuery)"
+    case "Yahoo":
+        "https://search.yahoo.com/search?p=\(encodedQuery)"
+    case "Qwant":
+        "https://www.qwant.com/?q=\(encodedQuery)"
+    case "Kagi":
+        "https://kagi.com/search?q=\(encodedQuery)"
+    case "Brave":
+        "https://search.brave.com/search?q=\(encodedQuery)"
+    case "Ecosia":
+        "https://www.ecosia.org/search?q=\(encodedQuery)"
+    case "Yandex":
+        "https://yandex.com/search/?text=\(encodedQuery)"
+    case "YouTube":
+        "https://www.youtube.com/results?search_query=\(encodedQuery)"
     default:
         "https://www.google.com/search?q=\(encodedQuery)"
     }

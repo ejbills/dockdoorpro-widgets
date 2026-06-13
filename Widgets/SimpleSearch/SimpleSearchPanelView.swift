@@ -7,6 +7,8 @@ struct SimpleSearchPanelView: View {
     @Environment(\.openURL) private var openURL
     @State private var query = ""
     @State private var isSubmitting = false
+    @State private var isHoveringClear = false
+    @State private var isHoveringSearch = false
     @FocusState private var isFocused: Bool
 
     private var trimmedQuery: String {
@@ -15,30 +17,45 @@ struct SimpleSearchPanelView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField("Search...", text: $query)
+            TextField("Search or URL", text: $query)
                 .textFieldStyle(.plain)
-                .focused($isFocused)
+                .font(.title3)
+                .foregroundStyle(.white)
                 .onSubmit(submit)
-            .frame(height: 22)
+                .focused($isFocused)
+                .frame(maxWidth: .infinity)
+                .frame(height: 26)
 
             if !query.isEmpty && !isSubmitting {
                 Button("Clear Search", systemImage: "xmark.circle.fill") {
                     query = ""
                 }
                 .labelStyle(.iconOnly)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(isHoveringClear ? Color.white : Color.white.opacity(0.4))
                 .buttonStyle(.plain)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                .onHover { isHoveringClear = $0 }
+                .animation(.easeOut(duration: 0.15), value: isHoveringClear)
             }
 
-            Button("Search", systemImage: isSubmitting ? "magnifyingglass.circle.fill" : "magnifyingglass", action: submit)
+            Button("Search", systemImage: isSubmitting ? "magnifyingglass.circle.fill" : "magnifyingglass.circle", action: submit)
                 .labelStyle(.iconOnly)
-                .foregroundStyle(trimmedQuery.isEmpty ? .tertiary : .primary)
+                .foregroundStyle(
+                    trimmedQuery.isEmpty
+                        ? Color.white.opacity(0.3)
+                        : isHoveringSearch ? Color.white : Color.white.opacity(0.6)
+                )
                 .scaleEffect(isSubmitting ? 1.3 : 1.0)
                 .rotationEffect(.degrees(isSubmitting ? 360 : 0))
-                .animation(.spring(response: 0.35, dampingFraction: 0.6), value: isSubmitting)
+                .animation(.spring(response: 0.20, dampingFraction: 0.6), value: isSubmitting)
                 .buttonStyle(.plain)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
                 .disabled(trimmedQuery.isEmpty)
+                .onHover { isHoveringSearch = $0 }
+                .animation(.easeOut(duration: 0.15), value: isHoveringSearch)
         }
         .background {
             Button("Cancel", action: dismiss)
@@ -47,10 +64,8 @@ struct SimpleSearchPanelView: View {
                 .opacity(0)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: .rect(cornerRadius: 10))
-        .padding(12)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
         .frame(width: 320)
         .animation(.easeOut(duration: 0.15), value: isSubmitting)
         .task {
@@ -78,7 +93,7 @@ struct SimpleSearchPanelView: View {
         }
 
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(for: .milliseconds(250))
             if let url = searchURL(for: query, widgetId: widgetId) {
                 openURL(url)
             }
