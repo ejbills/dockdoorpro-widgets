@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct SimpleSearchPanelView: View {
     let widgetId: String
