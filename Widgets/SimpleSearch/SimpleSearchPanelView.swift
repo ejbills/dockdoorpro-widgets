@@ -10,6 +10,7 @@ struct SimpleSearchPanelView: View {
     @State private var isSubmitting = false
     @State private var isHoveringClear = false
     @State private var isHoveringSearch = false
+    @FocusState private var isFocused: Bool
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -22,9 +23,9 @@ struct SimpleSearchPanelView: View {
                 .font(.title3)
                 .foregroundStyle(.white)
                 .onSubmit(submit)
+                .focused($isFocused)
                 .frame(maxWidth: .infinity)
                 .frame(height: 26)
-                .background(FocusOnAppearView())
 
             if !query.isEmpty && !isSubmitting {
                 Button("Clear Search", systemImage: "xmark.circle.fill") {
@@ -68,6 +69,21 @@ struct SimpleSearchPanelView: View {
         .padding(.vertical, 12)
         .frame(width: 320)
         .animation(.easeOut(duration: 0.15), value: isSubmitting)
+        .task {
+            await focusField()
+        }
+    }
+
+    private func focusField() async {
+        for delay in [0, 50, 150, 300] {
+            if delay > 0 {
+                try? await Task.sleep(for: .milliseconds(delay))
+            }
+
+            isFocused = false
+            await Task.yield()
+            isFocused = true
+        }
     }
 
     private func submit() {
@@ -86,49 +102,5 @@ struct SimpleSearchPanelView: View {
             isSubmitting = false
             dismiss()
         }
-    }
-}
-
-private struct FocusOnAppearView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        FocusProxyView()
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
-}
-
-private final class FocusProxyView: NSView {
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-
-        guard let window else { return }
-
-        let focus = {
-            if let field = self.enclosingTextField() {
-                window.makeKeyAndOrderFront(nil)
-                window.makeFirstResponder(field)
-            }
-        }
-
-        focus()
-
-        for delay in [50, 150, 300] {
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(delay))
-                focus()
-            }
-        }
-    }
-
-    private func enclosingTextField() -> NSTextField? {
-        var view: NSView? = superview
-        while let v = view {
-            if let field = v as? NSTextField { return field }
-            for sub in v.subviews {
-                if let field = sub as? NSTextField { return field }
-            }
-            view = v.superview
-        }
-        return nil
     }
 }
