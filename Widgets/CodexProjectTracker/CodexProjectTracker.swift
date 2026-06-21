@@ -39,7 +39,7 @@ final class CodexProjectTrackerPlugin: WidgetPlugin, DockDoorWidgetProvider {
     }
 
     func performTapAction() {
-        NSWorkspace.shared.open(CodexTrackerStore.defaultProjectsRoot)
+        CodexAppLauncher.openCodex()
     }
 }
 
@@ -49,7 +49,10 @@ private struct CodexTrackerCompactView: View {
     @State private var snapshot = CodexSnapshot.empty
 
     private var dim: CGFloat { min(size.width, size.height) }
-    private var iconWidth: CGFloat { dim * WidgetMetrics.sfSymbolScale * 0.8 }
+    private var iconWidth: CGFloat { min(dim * 0.74, 34) }
+    private var compactTitleSize: CGFloat { max(10, min(dim * 0.23, 13)) }
+    private var titleSize: CGFloat { isVertical ? max(11, min(dim * 0.23, 14)) : max(14, min(dim * 0.30, 17)) }
+    private var subtitleSize: CGFloat { isVertical ? max(9, min(dim * 0.18, 11)) : max(10, min(dim * 0.22, 12)) }
     private var isExtended: Bool {
         isVertical ? size.height > size.width * 1.5 : size.width > size.height * 1.5
     }
@@ -71,15 +74,12 @@ private struct CodexTrackerCompactView: View {
     }
 
     private var compactLayout: some View {
-        VStack(spacing: 1) {
-            Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: iconWidth)
+        VStack(spacing: 2) {
+            CodexAppIconView(size: iconWidth)
             Text("Codex")
-                .font(.caption.weight(.bold))
+                .font(.system(size: compactTitleSize, weight: .bold, design: .rounded))
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(0.75)
         }
         .foregroundStyle(.primary)
     }
@@ -88,18 +88,12 @@ private struct CodexTrackerCompactView: View {
         Group {
             if isVertical {
                 VStack(spacing: dim * 0.12) {
-                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: iconWidth)
+                    CodexAppIconView(size: iconWidth)
                     projectLabels(alignment: .center)
                 }
             } else {
                 HStack(spacing: dim * 0.12) {
-                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: iconWidth)
+                    CodexAppIconView(size: iconWidth)
                     projectLabels(alignment: .leading)
                 }
             }
@@ -111,16 +105,68 @@ private struct CodexTrackerCompactView: View {
         HStack(spacing: 6) {
             VStack(alignment: alignment, spacing: 0) {
                 Text("Codex")
-                    .font(.caption.weight(.bold))
+                    .font(.system(size: titleSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(snapshot.headline)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: subtitleSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.72))
                     .lineLimit(1)
             }
-            .minimumScaleFactor(0.5)
+            .minimumScaleFactor(0.72)
+            .layoutPriority(1)
         }
     }
+}
+
+private struct CodexAppIconView: View {
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let image = CodexAppIconProvider.icon {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding(size * 0.16)
+            }
+        }
+        .frame(width: size, height: size)
+        .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: max(7, size * 0.22)))
+        .overlay {
+            RoundedRectangle(cornerRadius: max(7, size * 0.22))
+                .stroke(.white.opacity(0.14), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 3, y: 1)
+    }
+}
+
+private enum CodexAppIconProvider {
+    static let icon: NSImage? = {
+        let fileManager = FileManager.default
+        let resourceCandidates = [
+            "/Applications/Codex.app/Contents/Resources/icon.icns",
+            "/Applications/Codex.app/Contents/Resources/electron.icns",
+            "/Applications/Codex.app/Contents/Resources/app.icns",
+        ]
+
+        for path in resourceCandidates where fileManager.fileExists(atPath: path) {
+            if let image = NSImage(contentsOfFile: path) {
+                image.size = NSSize(width: 128, height: 128)
+                return image
+            }
+        }
+
+        let appPath = "/Applications/Codex.app"
+        guard fileManager.fileExists(atPath: appPath) else { return nil }
+        let image = NSWorkspace.shared.icon(forFile: appPath)
+        image.size = NSSize(width: 128, height: 128)
+        return image
+    }()
 }
 
 private struct CodexTrackerPanelView: View {
@@ -152,28 +198,7 @@ private struct CodexTrackerPanelView: View {
                     .foregroundStyle(.secondary)
 
                 ForEach(snapshot.sessions) { session in
-                    HStack(spacing: 8) {
-                        Image(systemName: session.isActive ? "circle.fill" : "circle")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(session.isActive ? .green : .secondary)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(session.projectName)
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(1)
-                            Text(session.title ?? session.relativeActivity)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        Text(session.relativeActivity)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        NSWorkspace.shared.open(session.projectURL)
-                    }
+                    CodexSessionRow(session: session)
                 }
             }
 
@@ -194,6 +219,46 @@ private struct CodexTrackerPanelView: View {
         .task {
             snapshot = await CodexTrackerStore.snapshot()
         }
+    }
+}
+
+private struct CodexSessionRow: View {
+    let session: CodexSession
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            CodexAppLauncher.openSession(session)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: session.isActive ? "circle.fill" : "circle")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(session.isActive ? .green : .secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(session.projectName)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Text(session.title ?? session.relativeActivity)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text(session.relativeActivity)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary.opacity(isHovering ? 0.9 : 0.0))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .background(.white.opacity(isHovering ? 0.10 : 0.0), in: RoundedRectangle(cornerRadius: 7))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help("Open in Codex")
     }
 }
 
@@ -262,6 +327,31 @@ private struct CodexSession: Identifiable {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: modified, relativeTo: Date())
+    }
+
+    var codexDeepLink: URL? {
+        guard UUID(uuidString: id) != nil else { return nil }
+        return URL(string: "codex://threads/\(id)")
+    }
+}
+
+private enum CodexAppLauncher {
+    private static let codexAppURL = URL(fileURLWithPath: "/Applications/Codex.app")
+
+    static func openSession(_ session: CodexSession) {
+        if let deepLink = session.codexDeepLink {
+            NSWorkspace.shared.open(deepLink)
+        } else {
+            openCodex()
+        }
+    }
+
+    static func openCodex() {
+        if FileManager.default.fileExists(atPath: codexAppURL.path) {
+            NSWorkspace.shared.open(codexAppURL)
+        } else {
+            NSWorkspace.shared.open(CodexTrackerStore.defaultProjectsRoot)
+        }
     }
 }
 
