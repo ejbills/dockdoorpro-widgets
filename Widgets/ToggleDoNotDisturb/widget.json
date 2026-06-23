@@ -1,0 +1,10 @@
+{
+  "id": "toggle-do-not-disturb-shortcut",
+  "name": "Toggle Do Not Disturb",
+  "author": "grantwilson",
+  "description": "Runs the Toggle Do Not Disturb shortcut from the dock.",
+  "iconSymbol": "moon.fill",
+  "orientations": ["horizontal", "vertical"],
+  "principalClass": "ToggleDoNotDisturbPlugin",
+  "sources": ["ToggleDoNotDisturbPlugin.swift", "ToggleDoNotDisturbView.swift", "ToggleDoNotDisturbPanelView.swift"]
+}
