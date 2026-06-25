@@ -6,8 +6,7 @@ struct StorageMonitorView: View {
     let isVertical: Bool
     let widgetId: String
 
-    @State private var totalGB: Double = 0
-    @State private var freeGB: Double = 0
+    @State private var volume: VolumeInfo?
 
     // MARK: - Settings
 
@@ -32,8 +31,7 @@ struct StorageMonitorView: View {
     }
 
     private var usedFraction: Double {
-        guard totalGB > 0 else { return 0 }
-        return (totalGB - freeGB) / totalGB
+        volume?.usedFraction ?? 0
     }
 
     private var ringColor: Color {
@@ -44,12 +42,9 @@ struct StorageMonitorView: View {
 
     private var freeLabel: String {
         if showPercentage {
-            return "\(Int((1 - usedFraction) * 100))%"
+            return "\(Int(((volume?.freeFraction ?? 0) * 100).rounded()))%"
         }
-        if freeGB >= 100 {
-            return "\(Int(freeGB)) GB"
-        }
-        return String(format: "%.1f GB", freeGB)
+        return volume?.freeLabel.replacingOccurrences(of: " free", with: "") ?? "--"
     }
 
     var body: some View {
@@ -61,7 +56,7 @@ struct StorageMonitorView: View {
             }
         }
         .padding(8)
-        .onAppear { refresh() }
+        .task { await refreshPeriodically() }
     }
 
     // MARK: - Compact
@@ -103,7 +98,7 @@ struct StorageMonitorView: View {
                         Text(freeLabel)
                             .font(.title2.weight(.bold).monospacedDigit())
                             .foregroundStyle(.primary)
-                        Text("Free of \(Int(totalGB)) GB")
+                        Text("Free of \(volume?.totalLabel ?? "--")")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
@@ -133,12 +128,16 @@ struct StorageMonitorView: View {
     // MARK: - Data
 
     private func refresh() {
-        guard let attrs = try? FileManager.default.attributesOfFileSystem(forPath: "/") else { return }
-        if let total = attrs[.systemSize] as? Int64 {
-            totalGB = Double(total) / 1_073_741_824
-        }
-        if let free = attrs[.systemFreeSize] as? Int64 {
-            freeGB = Double(free) / 1_073_741_824
+        volume = StorageVolumeSnapshot.rootVolume()
+    }
+
+    private func refreshPeriodically() async {
+        refresh()
+
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard !Task.isCancelled else { return }
+            refresh()
         }
     }
 }

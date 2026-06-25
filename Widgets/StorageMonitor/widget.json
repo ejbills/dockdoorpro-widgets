@@ -6,5 +6,5 @@
     "iconSymbol": "internaldrive",
     "orientations": ["horizontal", "vertical"],
     "principalClass": "StorageMonitorPlugin",
-    "sources": ["StorageMonitorPlugin.swift", "StorageMonitorView.swift", "StorageMonitorPanelView.swift"]
+    "sources": ["StorageMonitorPlugin.swift", "StorageMonitorView.swift", "StorageMonitorPanelView.swift", "StorageVolumeSnapshot.swift"]
 }
