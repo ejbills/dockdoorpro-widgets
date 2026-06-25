@@ -1,0 +1,10 @@
+{
+  "id": "toggle-do-not-disturb-shortcut",
+  "name": "Focus Controls",
+  "author": "grantwilson",
+  "description": "Runs the Toggle Do Not Disturb shortcut from the dock.",
+  "iconSymbol": "moon.fill",
+  "orientations": ["horizontal", "vertical"],
+  "principalClass": "FocusControlsPlugin",
+  "sources": ["FocusControlsPlugin.swift", "FocusControlsView.swift", "FocusControlsPanelView.swift"]
+}
