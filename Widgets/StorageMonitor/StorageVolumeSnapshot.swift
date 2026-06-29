@@ -64,9 +64,10 @@ enum StorageVolumeSnapshot {
               total > 0
         else { return nil }
 
-        let free = values.volumeAvailableCapacityForImportantUsage
-            ?? values.volumeAvailableCapacity.map(Int64.init)
-            ?? 0
+        let importantUsage = values.volumeAvailableCapacityForImportantUsage ?? 0
+        let free = importantUsage > 0
+            ? importantUsage
+            : Int64(values.volumeAvailableCapacity ?? 0)
         let name = values.volumeLocalizedName
             ?? values.volumeName
             ?? FileManager.default.displayName(atPath: url.path)
