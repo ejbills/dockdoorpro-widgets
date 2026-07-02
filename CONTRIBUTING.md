@@ -49,6 +49,7 @@ Widgets/
 - **name** - display name shown in the marketplace
 - **iconSymbol** - any [SF Symbol](https://developer.apple.com/sf-symbols/) name
 - **orientations** - `"horizontal"` (bottom/top dock), `"vertical"` (left/right dock), or both. You need at least one. If you list an orientation, you need to handle both compact and extended layouts for it. Missing this field = won't show up in the marketplace.
+- **maxSlotSpan** (optional) - `2` or `3`. Set `3` if your widget also renders a triple-width slot (see [Triple slot](#triple-slot-optional)). Leave it out for the default of `2`. The host never gives your widget a slot span you didn't declare, so only opt in once your layouts actually handle it.
 - **principalClass** - must match your plugin class name exactly
 - **sources** - all your `.swift` files, order doesn't matter
 
@@ -140,6 +141,30 @@ struct MyWidgetView: View {
     }
 }
 ```
+
+### Triple slot (optional)
+
+Users can size a stack to span three dock slots. Support is opt-in: declare `"maxSlotSpan": 3` in `widget.json` and handle the extra layout. Widgets that don't opt in are simply hidden from triple-sized stacks — nothing breaks.
+
+Use `WidgetSlotSpan.detect` from the SDK instead of hand-rolling aspect-ratio checks:
+
+```swift
+private var slotSpan: WidgetSlotSpan {
+    WidgetSlotSpan.detect(size: size, isVertical: isVertical)
+}
+
+var body: some View {
+    switch slotSpan {
+    case .compact: compactLayout
+    case .extended: extendedLayout
+    case .triple: tripleLayout
+    }
+}
+```
+
+`.detect` returns `.compact` for a single slot, `.extended` for double, `.triple` for triple, using the same thresholds as the `isExtended` example above — so you can adopt it without changing how your existing layouts trigger. It's also safe on older app versions: the SDK inlines the detection into your bundle, so a widget built against the current SDK still loads on hosts that predate triple slots (they just never hand you a triple-sized area).
+
+If you declare `"maxSlotSpan": 3` for an orientation you support, handle all three layouts for it.
 
 ### Sizing
 
