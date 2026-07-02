@@ -49,6 +49,12 @@ def main():
             print(f"  Skipping {widget_dir.name}: missing 'orientations' field")
             continue
 
+        # Slot spans beyond 2 are opt-in; absent means the pre-3x default.
+        max_slot_span = meta.get("maxSlotSpan", 2)
+        if max_slot_span not in (2, 3):
+            print(f"  Skipping {widget_dir.name}: invalid 'maxSlotSpan' {max_slot_span!r}")
+            continue
+
         entry = {
             "id": meta["id"],
             "name": meta["name"],
@@ -56,6 +62,7 @@ def main():
             "description": meta.get("description", ""),
             "iconSymbol": meta.get("iconSymbol", "puzzlepiece"),
             "orientations": orientations,
+            "maxSlotSpan": max_slot_span,
             "bundleFilename": bundle_name + ".zip",
         }
 
