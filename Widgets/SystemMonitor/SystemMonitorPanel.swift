@@ -50,10 +50,9 @@ struct SystemMonitorPanel: View {
                 }
         }
         .opacity(appeared ? 1 : 0)
-        .scaleEffect(appeared ? 1 : 0.97)
         .onAppear {
             monitor.tick(minimumInterval: 0)
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+            withAnimation(.easeOut(duration: 0.18)) {
                 appeared = true
             }
         }
