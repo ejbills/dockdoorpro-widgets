@@ -306,7 +306,11 @@ struct SystemMonitorPanel: View {
                 memoryLegendRow("Wired", value: monitor.memory.wired, color: SystemMonitorPalette.memoryWired)
                 memoryLegendRow("Compressed", value: monitor.memory.compressed, color: SystemMonitorPalette.memoryCompressed)
                 memoryLegendRow("Available", value: monitor.memory.available, color: SystemMonitorPalette.available)
-                memoryLegendRow("Swap Used", value: monitor.memory.swapUsed, color: .purple)
+                memoryLegendRow(
+                    "Swap Used",
+                    value: monitor.memory.swapUsed,
+                    color: SystemMonitorPalette.memorySwap
+                )
 
                 HStack {
                     Text("Pressure")
