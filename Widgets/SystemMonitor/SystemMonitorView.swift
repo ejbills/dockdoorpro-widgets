@@ -127,12 +127,24 @@ struct SystemMonitorView: View {
         value: String,
         segments: [UsageSegment]
     ) -> some View {
-        MetricRingView(
-            title: title,
-            value: value,
-            segments: segments,
-            size: dim * 0.82
-        )
+        ZStack {
+            SegmentedUsageRing(
+                segments: segments,
+                lineWidth: max(dim * 0.10, 3)
+            )
+            .padding(dim * 0.08)
+
+            VStack(spacing: 0) {
+                Text(value)
+                    .font(.system(size: dim * 0.18, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
+                Text(title)
+                    .font(.system(size: max(dim * 0.10, 5), weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
+        }
     }
 
     private var cpuRing: some View {
