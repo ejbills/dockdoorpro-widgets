@@ -7,8 +7,6 @@ struct SystemMonitorPanel: View {
     let widgetId: String
     var monitor: SystemMetricsMonitor
 
-    @State private var appeared = false
-
     private let panelWidth: CGFloat = 340
     private let panelHorizontalPadding: CGFloat = 14
     private let panelScreenMargin: CGFloat = 48
@@ -49,17 +47,17 @@ struct SystemMonitorPanel: View {
                     monitor.tick(minimumInterval: refreshInterval * 0.8)
                 }
         }
-        .opacity(appeared ? 1 : 0)
         .onAppear {
             monitor.tick(minimumInterval: 0)
-            withAnimation(.easeOut(duration: 0.18)) {
-                appeared = true
-            }
         }
     }
 
     private var panelContent: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Color.clear
+                .frame(width: panelWidth, height: 0)
+                .accessibilityHidden(true)
+
             header
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(1)
@@ -68,7 +66,7 @@ struct SystemMonitorPanel: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(1)
 
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     overview
                     history
