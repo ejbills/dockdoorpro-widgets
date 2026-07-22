@@ -1,3 +1,4 @@
+import AppKit
 import DockDoorWidgetSDK
 import SwiftUI
 
@@ -7,6 +8,9 @@ struct SystemMonitorPanel: View {
     var monitor: SystemMetricsMonitor
 
     @State private var appeared = false
+
+    private let panelScreenMargin: CGFloat = 24
+    private let headerHeightAllowance: CGFloat = 42
 
     private var refreshInterval: TimeInterval {
         switch WidgetDefaults.string(key: "refreshInterval", widgetId: widgetId, default: "1s") {
@@ -18,6 +22,16 @@ struct SystemMonitorPanel: View {
 
     private var processLimit: Int {
         Int(WidgetDefaults.string(key: "processCount", widgetId: widgetId, default: "8")) ?? 8
+    }
+
+    private var maximumScrollHeight: CGFloat {
+        let mouseLocation = NSEvent.mouseLocation
+        let activeScreen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
+        let visibleHeight = activeScreen?.visibleFrame.height ?? 800
+        return max(
+            320,
+            visibleHeight - (panelScreenMargin * 2) - headerHeightAllowance
+        )
     }
 
     var body: some View {
@@ -64,8 +78,11 @@ struct SystemMonitorPanel: View {
                         color: SystemMonitorPalette.memoryCompressed
                     )
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.top, 20)
+                .padding(.bottom, 24)
             }
+            .frame(maxHeight: maximumScrollHeight)
         }
         .background(panelBackground)
         .overlay(panelBorder)
