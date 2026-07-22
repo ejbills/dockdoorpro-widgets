@@ -17,6 +17,10 @@ enum SystemMonitorPalette {
         light: NSColor(red: 0.69, green: 0.32, blue: 0.87, alpha: 1),
         dark: NSColor(red: 0.59, green: 0.40, blue: 0.66, alpha: 1)
     )
+    static let destructive = adaptive(
+        light: NSColor(red: 1.00, green: 0.23, blue: 0.19, alpha: 1),
+        dark: NSColor(red: 0.74, green: 0.34, blue: 0.32, alpha: 1)
+    )
     static let available = Color.primary.opacity(0.16)
 
     private static func adaptive(light: NSColor, dark: NSColor) -> Color {

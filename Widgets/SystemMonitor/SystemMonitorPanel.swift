@@ -544,7 +544,7 @@ private struct ProcessUsageRow: View {
                         } label: {
                             Image(systemName: "stop.circle.fill")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(SystemMonitorPalette.destructive)
                         }
                         .buttonStyle(.plain)
                         .help("Terminate \(process.name) (PID \(process.pid))")
@@ -588,8 +588,9 @@ private struct ProcessUsageRow: View {
     private var terminationResultColor: Color {
         switch terminationResult {
         case .requested: return .orange
-        case .forceRequested: return .red
-        case .blocked, .permissionDenied, .processChanged, .notRunning, .failed: return .red
+        case .forceRequested: return SystemMonitorPalette.destructive
+        case .blocked, .permissionDenied, .processChanged, .notRunning, .failed:
+            return SystemMonitorPalette.destructive
         case nil: return color
         }
     }
