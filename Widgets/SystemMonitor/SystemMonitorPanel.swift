@@ -426,17 +426,17 @@ struct SystemMonitorPanel: View {
 
     private var pressureColor: Color {
         switch monitor.memory.pressure {
-        case .normal: return .green
-        case .warning: return .orange
-        case .critical: return .red
+        case .normal: return SystemMonitorPalette.statusNormal
+        case .warning: return SystemMonitorPalette.statusWarning
+        case .critical: return SystemMonitorPalette.destructive
         }
     }
 
     private var temperatureColor: Color {
         guard let temperature = monitor.cpuTemperature else { return .secondary }
-        if temperature >= 90 { return .red }
-        if temperature >= 70 { return .orange }
-        return .green
+        if temperature >= 90 { return SystemMonitorPalette.destructive }
+        if temperature >= 70 { return SystemMonitorPalette.statusWarning }
+        return SystemMonitorPalette.statusNormal
     }
 
     private var divider: some View {
@@ -587,7 +587,7 @@ private struct ProcessUsageRow: View {
 
     private var terminationResultColor: Color {
         switch terminationResult {
-        case .requested: return .orange
+        case .requested: return SystemMonitorPalette.statusWarning
         case .forceRequested: return SystemMonitorPalette.destructive
         case .blocked, .permissionDenied, .processChanged, .notRunning, .failed:
             return SystemMonitorPalette.destructive

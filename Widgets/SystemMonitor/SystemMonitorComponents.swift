@@ -2,13 +2,19 @@ import AppKit
 import SwiftUI
 
 enum SystemMonitorPalette {
-    static let cpuUser = Color(red: 0.05, green: 0.52, blue: 0.98)
+    static let cpuUser = adaptive(
+        light: NSColor(red: 0.05, green: 0.52, blue: 0.98, alpha: 1),
+        dark: NSColor(red: 0.25, green: 0.49, blue: 0.69, alpha: 1)
+    )
     static let cpuSystem = adaptive(
         light: NSColor(red: 1.00, green: 0.24, blue: 0.30, alpha: 1),
         dark: NSColor(red: 0.76, green: 0.32, blue: 0.35, alpha: 1)
     )
-    static let memoryApp = Color(red: 0.05, green: 0.52, blue: 0.98)
-    static let memoryWired = Color(red: 1.00, green: 0.51, blue: 0.12)
+    static let memoryApp = cpuUser
+    static let memoryWired = adaptive(
+        light: NSColor(red: 1.00, green: 0.51, blue: 0.12, alpha: 1),
+        dark: NSColor(red: 0.73, green: 0.43, blue: 0.22, alpha: 1)
+    )
     static let memoryCompressed = adaptive(
         light: NSColor(red: 1.00, green: 0.16, blue: 0.35, alpha: 1),
         dark: NSColor(red: 0.76, green: 0.29, blue: 0.43, alpha: 1)
@@ -20,6 +26,14 @@ enum SystemMonitorPalette {
     static let destructive = adaptive(
         light: NSColor(red: 1.00, green: 0.23, blue: 0.19, alpha: 1),
         dark: NSColor(red: 0.74, green: 0.34, blue: 0.32, alpha: 1)
+    )
+    static let statusNormal = adaptive(
+        light: NSColor(red: 0.20, green: 0.78, blue: 0.35, alpha: 1),
+        dark: NSColor(red: 0.31, green: 0.62, blue: 0.40, alpha: 1)
+    )
+    static let statusWarning = adaptive(
+        light: NSColor(red: 1.00, green: 0.58, blue: 0.00, alpha: 1),
+        dark: NSColor(red: 0.74, green: 0.48, blue: 0.25, alpha: 1)
     )
     static let available = Color.primary.opacity(0.16)
 
