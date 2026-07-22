@@ -9,8 +9,9 @@ struct SystemMonitorPanel: View {
 
     @State private var appeared = false
 
-    private let panelScreenMargin: CGFloat = 24
+    private let panelScreenMargin: CGFloat = 48
     private let headerHeightAllowance: CGFloat = 42
+    private let maximumScrollViewportHeight: CGFloat = 760
 
     private var refreshInterval: TimeInterval {
         switch WidgetDefaults.string(key: "refreshInterval", widgetId: widgetId, default: "1s") {
@@ -24,14 +25,15 @@ struct SystemMonitorPanel: View {
         Int(WidgetDefaults.string(key: "processCount", widgetId: widgetId, default: "8")) ?? 8
     }
 
-    private var maximumScrollHeight: CGFloat {
+    private var scrollViewportHeight: CGFloat {
         let mouseLocation = NSEvent.mouseLocation
         let activeScreen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
         let visibleHeight = activeScreen?.visibleFrame.height ?? 800
-        return max(
+        let screenConstrainedHeight = max(
             320,
             visibleHeight - (panelScreenMargin * 2) - headerHeightAllowance
         )
+        return min(maximumScrollViewportHeight, screenConstrainedHeight)
     }
 
     var body: some View {
@@ -87,7 +89,7 @@ struct SystemMonitorPanel: View {
                 .padding(.top, 20)
                 .padding(.bottom, 24)
             }
-            .frame(maxHeight: maximumScrollHeight)
+            .frame(height: scrollViewportHeight)
             .layoutPriority(0)
             .clipped()
         }
