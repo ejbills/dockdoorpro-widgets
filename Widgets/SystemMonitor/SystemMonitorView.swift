@@ -64,20 +64,13 @@ struct SystemMonitorView: View {
                         lineWidth: max(dim * 0.075, 2.5)
                     )
                     .padding(dim * 0.25)
-
-                    VStack(spacing: 0) {
-                        Text(SystemValueFormatter.percent(monitor.cpu.used))
-                            .font(.system(size: dim * 0.18, weight: .bold, design: .rounded).monospacedDigit())
-                        Text("CPU")
-                            .font(.system(size: dim * 0.08, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text("M \(SystemValueFormatter.percent(monitor.memory.usedFraction))")
-                            .font(.system(size: dim * 0.09, weight: .semibold, design: .rounded).monospacedDigit())
-                            .foregroundStyle(SystemMonitorPalette.memoryApp)
-                    }
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("CPU and Memory")
+                .accessibilityValue(
+                    "CPU \(SystemValueFormatter.percent(monitor.cpu.used)), "
+                        + "Memory \(SystemValueFormatter.percent(monitor.memory.usedFraction))"
+                )
             } else if showCPU {
                 compactSingleRing(
                     title: "CPU",
