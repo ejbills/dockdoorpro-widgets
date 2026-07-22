@@ -1,0 +1,17 @@
+{
+    "id": "system-monitor-cpu-memory",
+    "name": "CPU & Memory",
+    "author": "skykeyjoker",
+    "description": "Live CPU and memory rings with hardware temperature, CPU frequency, history, and per-process PID tooltips.",
+    "iconSymbol": "gauge.with.dots.needle.67percent",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "SystemMonitorPlugin",
+    "sources": [
+        "SystemMonitorPlugin.swift",
+        "SystemMetricsMonitor.swift",
+        "SystemHardwareMonitor.swift",
+        "SystemMonitorComponents.swift",
+        "SystemMonitorView.swift",
+        "SystemMonitorPanel.swift"
+    ]
+}
