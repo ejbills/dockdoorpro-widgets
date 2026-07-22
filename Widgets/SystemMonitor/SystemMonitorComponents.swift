@@ -1,12 +1,25 @@
+import AppKit
 import SwiftUI
 
 enum SystemMonitorPalette {
     static let cpuUser = Color(red: 0.05, green: 0.52, blue: 0.98)
-    static let cpuSystem = Color(red: 1.00, green: 0.24, blue: 0.30)
+    static let cpuSystem = adaptive(
+        light: NSColor(red: 1.00, green: 0.24, blue: 0.30, alpha: 1),
+        dark: NSColor(red: 0.76, green: 0.32, blue: 0.35, alpha: 1)
+    )
     static let memoryApp = Color(red: 0.05, green: 0.52, blue: 0.98)
     static let memoryWired = Color(red: 1.00, green: 0.51, blue: 0.12)
-    static let memoryCompressed = Color(red: 1.00, green: 0.16, blue: 0.35)
+    static let memoryCompressed = adaptive(
+        light: NSColor(red: 1.00, green: 0.16, blue: 0.35, alpha: 1),
+        dark: NSColor(red: 0.76, green: 0.29, blue: 0.43, alpha: 1)
+    )
     static let available = Color.primary.opacity(0.16)
+
+    private static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        })
+    }
 }
 
 struct UsageSegment: Identifiable {
