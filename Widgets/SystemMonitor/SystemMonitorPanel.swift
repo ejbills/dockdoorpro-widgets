@@ -9,6 +9,8 @@ struct SystemMonitorPanel: View {
 
     @State private var appeared = false
 
+    private let panelWidth: CGFloat = 340
+    private let panelHorizontalPadding: CGFloat = 14
     private let panelScreenMargin: CGFloat = 48
     private let headerHeightAllowance: CGFloat = 42
     private let maximumScrollViewportHeight: CGFloat = 760
@@ -36,6 +38,10 @@ struct SystemMonitorPanel: View {
         return min(maximumScrollViewportHeight, screenConstrainedHeight)
     }
 
+    private var panelCardWidth: CGFloat {
+        panelWidth - (panelHorizontalPadding * 2)
+    }
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: refreshInterval)) { context in
             panelContent
@@ -55,7 +61,6 @@ struct SystemMonitorPanel: View {
 
     private var panelContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Color.clear.frame(width: 340, height: 0)
             header
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(1)
@@ -85,12 +90,12 @@ struct SystemMonitorPanel: View {
                         color: SystemMonitorPalette.memoryCompressed
                     )
                 }
-                .padding(.horizontal, 14)
+                .frame(width: panelCardWidth, alignment: .leading)
+                .padding(.horizontal, panelHorizontalPadding)
                 .padding(.top, 20)
                 .padding(.bottom, 24)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: scrollViewportHeight)
+            .frame(width: panelWidth, height: scrollViewportHeight)
             .layoutPriority(0)
             .clipped()
         }
