@@ -55,7 +55,12 @@ struct SystemMonitorPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(width: 340, height: 0)
             header
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+                .zIndex(1)
             SystemGlassDivider()
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -83,6 +88,8 @@ struct SystemMonitorPanel: View {
                 .padding(.bottom, 24)
             }
             .frame(maxHeight: maximumScrollHeight)
+            .layoutPriority(0)
+            .clipped()
         }
         .background(panelBackground)
         .overlay(panelBorder)
