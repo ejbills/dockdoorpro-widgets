@@ -55,6 +55,14 @@ def main():
             print(f"  Skipping {widget_dir.name}: invalid 'maxSlotSpan' {max_slot_span!r}")
             continue
 
+        # Feature-level gate: absent means the level-1 baseline every client
+        # supports. Declare only when the widget uses newer SDK surface
+        # (e.g. table settings need level 2).
+        requires_level = meta.get("requiresFeatureLevel")
+        if requires_level is not None and (not isinstance(requires_level, int) or requires_level < 1):
+            print(f"  Skipping {widget_dir.name}: invalid 'requiresFeatureLevel' {requires_level!r}")
+            continue
+
         entry = {
             "id": meta["id"],
             "name": meta["name"],
@@ -65,6 +73,9 @@ def main():
             "maxSlotSpan": max_slot_span,
             "bundleFilename": bundle_name + ".zip",
         }
+
+        if requires_level is not None:
+            entry["requiresFeatureLevel"] = requires_level
 
         entry["sourceHash"] = sha256_of_sources(widget_dir)
 

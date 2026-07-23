@@ -50,6 +50,7 @@ Widgets/
 - **iconSymbol** - any [SF Symbol](https://developer.apple.com/sf-symbols/) name
 - **orientations** - `"horizontal"` (bottom/top dock), `"vertical"` (left/right dock), or both. You need at least one. If you list an orientation, you need to handle both compact and extended layouts for it. Missing this field = won't show up in the marketplace.
 - **maxSlotSpan** (optional) - `2` or `3`. Set `3` if your widget also renders a triple-width slot (see [Triple slot](#triple-slot-optional)). Leave it out for the default of `2`. The host never gives your widget a slot span you didn't declare, so only opt in once your layouts actually handle it.
+- **requiresFeatureLevel** (optional) - minimum client SDK feature level your widget needs. Leave it out unless you use newer SDK surface; clients below the level see "Requires app update" instead of an install/update button, and keep any installed older build running. Current levels: `2` if your `settingsSchema()` returns a `.table` setting. Capability protocols like `WidgetScrollHandling` do NOT need a level — old clients ignore them safely.
 - **principalClass** - must match your plugin class name exactly
 - **sources** - all your `.swift` files, order doesn't matter
 
