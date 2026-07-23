@@ -1007,9 +1007,7 @@ struct CodexUsageMonitorPanel: View {
                     Spacer()
                     Toggle("", isOn: $showStatus)
                         .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .tint(theme.primary)
+                        .toggleStyle(CodexAccentSwitchStyle(accent: theme.primary))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
@@ -1026,9 +1024,7 @@ struct CodexUsageMonitorPanel: View {
                     Spacer()
                     Toggle("", isOn: $showExtraModelQuotas)
                         .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .tint(theme.primary)
+                        .toggleStyle(CodexAccentSwitchStyle(accent: theme.primary))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
@@ -1436,6 +1432,38 @@ private struct CodexFooterActionHover: ViewModifier {
                 }
             }
             .accessibilityLabel(help)
+    }
+}
+
+private struct CodexAccentSwitchStyle: ToggleStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.78)) {
+                configuration.isOn.toggle()
+            }
+        } label: {
+            Capsule()
+                .fill(configuration.isOn ? accent : Color.primary.opacity(0.16))
+                .frame(width: 44, height: 24)
+                .overlay {
+                    Capsule()
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                }
+                .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 20, height: 20)
+                        .shadow(color: .black.opacity(0.20), radius: 2, y: 1)
+                        .padding(2)
+                }
+        }
+        .buttonStyle(.plain)
+        .contentShape(Capsule())
+        .accessibilityValue(configuration.isOn
+            ? CodexLocalization.text("已开启", "On")
+            : CodexLocalization.text("已关闭", "Off"))
     }
 }
 
