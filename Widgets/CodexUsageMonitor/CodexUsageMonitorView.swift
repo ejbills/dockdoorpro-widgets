@@ -66,6 +66,12 @@ struct CodexUsageMonitorView: View {
                         .minimumScaleFactor(0.68)
                         .padding(dim * 0.18)
                 }
+                .overlay(alignment: .topTrailing) {
+                    if showStatus {
+                        compactStatusDot
+                            .padding(dim * 0.10)
+                    }
+                }
             } else {
                 emptyState(compact: true)
             }
@@ -101,16 +107,18 @@ struct CodexUsageMonitorView: View {
                     VStack(spacing: dim * 0.10) {
                         if let weekly = usage.weeklyWindow { gauge(weekly, size: dim * 0.66) }
                         limitsStack(usage)
-                        serviceBadge
+                        if showStatus { serviceBadge }
                     }
                 } else {
                     HStack(spacing: dim * 0.12) {
                         if let weekly = usage.weeklyWindow { gauge(weekly, size: dim * 0.68) }
                         limitsStack(usage)
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.10))
-                            .frame(width: 0.5)
-                        serviceBadge
+                        if showStatus {
+                            Rectangle()
+                                .fill(Color.primary.opacity(0.10))
+                                .frame(width: 0.5)
+                            serviceBadge
+                        }
                     }
                 }
             } else {
@@ -239,6 +247,11 @@ struct CodexUsageMonitorView: View {
         return Circle()
             .fill(indicator.color(for: appearance))
             .frame(width: max(5, dim * 0.07), height: max(5, dim * 0.07))
+            .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 0.8))
+            .shadow(
+                color: indicator.color(for: appearance).opacity(0.28),
+                radius: 2
+            )
     }
 
     private func emptyState(compact: Bool) -> some View {

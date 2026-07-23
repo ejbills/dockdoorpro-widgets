@@ -53,6 +53,11 @@ final class CodexUsageMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
                 label: CodexLocalization.text("Dock 显示服务状态", "Show Service Status in Dock"),
                 defaultValue: true
             ),
+            .toggle(
+                key: "showExtraModelQuotas",
+                label: CodexLocalization.text("显示额外模型额度", "Show Extra Model Quotas"),
+                defaultValue: true
+            ),
         ]
     }
 

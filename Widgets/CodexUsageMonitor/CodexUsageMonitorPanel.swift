@@ -24,6 +24,7 @@ struct CodexUsageMonitorPanel: View {
     @State private var quotaUsageSource = CodexQuotaUsageSource.automatic
     @State private var refreshInterval = CodexRefreshInterval.fiveMinutes
     @State private var showStatus = true
+    @State private var showExtraModelQuotas = true
     @State private var hoveredUsageDayID: String?
     @State private var hoveredUsageLocation: CGPoint?
     @State private var usageTooltipSize = CGSize(width: 126, height: 80)
@@ -118,7 +119,7 @@ struct CodexUsageMonitorPanel: View {
 
             if monitor.isRefreshing {
                 ProgressView().controlSize(.mini)
-            } else {
+            } else if showStatus || page == .status {
                 CodexPulseDot(
                     color: monitor.serviceStatus?.overallIndicator.color(for: appearance) ?? theme.primary
                 )
@@ -257,7 +258,9 @@ struct CodexUsageMonitorPanel: View {
                     recentTokenUsageLoadingCard
                 }
                 resetAndCredits(usage)
-                if !usage.extraWindows.isEmpty { extraLimits(usage.extraWindows) }
+                if showExtraModelQuotas, !usage.extraWindows.isEmpty {
+                    extraLimits(usage.extraWindows)
+                }
                 overviewFooter(usage)
             } else if let error = monitor.usageError {
                 errorCard(error)
@@ -290,7 +293,7 @@ struct CodexUsageMonitorPanel: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            statusCapsule
+            if showStatus { statusCapsule }
         }
         .padding(10)
         .background(CodexGlassCard())
@@ -1006,11 +1009,31 @@ struct CodexUsageMonitorPanel: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
+                        .tint(theme.primary)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .onChange(of: showStatus) { _, value in
                     monitor.writeSetting(value, key: "showStatus")
+                }
+                CodexGlassDivider()
+                HStack {
+                    Text(CodexLocalization.text(
+                        "显示额外模型额度",
+                        "Show extra model quotas"
+                    ))
+                        .font(.system(size: 11, weight: .medium))
+                    Spacer()
+                    Toggle("", isOn: $showExtraModelQuotas)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .tint(theme.primary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .onChange(of: showExtraModelQuotas) { _, value in
+                    monitor.writeSetting(value, key: "showExtraModelQuotas")
                 }
             }
 
@@ -1264,6 +1287,11 @@ struct CodexUsageMonitorPanel: View {
             default: CodexRefreshInterval.fiveMinutes.title
         ))
         showStatus = WidgetDefaults.bool(key: "showStatus", widgetId: widgetId, default: true)
+        showExtraModelQuotas = WidgetDefaults.bool(
+            key: "showExtraModelQuotas",
+            widgetId: widgetId,
+            default: true
+        )
     }
 
     private var resolvedQuotaSourceLabel: String {
