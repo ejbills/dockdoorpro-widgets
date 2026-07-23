@@ -1496,14 +1496,28 @@ struct CodexUsageMonitorPanel: View {
     }
 
     private func openCodexApp() {
-        let applicationURL = URL(fileURLWithPath: "/Applications/Codex.app")
-        if FileManager.default.fileExists(atPath: applicationURL.path) {
-            NSWorkspace.shared.open(applicationURL)
-        } else {
-            NSWorkspace.shared.open(
-                FileManager.default.homeDirectoryForCurrentUser
-                    .appendingPathComponent(".codex", isDirectory: true)
-            )
+        let workspace = NSWorkspace.shared
+        let bundleIdentifiers = [
+            "com.openai.codex",
+            "com.openai.chat",
+        ]
+
+        for bundleIdentifier in bundleIdentifiers {
+            if let applicationURL = workspace.urlForApplication(
+                withBundleIdentifier: bundleIdentifier
+            ) {
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.activates = true
+                workspace.openApplication(
+                    at: applicationURL,
+                    configuration: configuration
+                )
+                return
+            }
+        }
+
+        if let deepLink = URL(string: "codex://") {
+            workspace.open(deepLink)
         }
     }
 
