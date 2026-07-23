@@ -62,7 +62,7 @@ enum CodexPalette {
     static let green = Color(red: 0.20, green: 0.78, blue: 0.35)
     static let yellow = Color(red: 0.96, green: 0.77, blue: 0.13)
     static let red = Color(red: 0.91, green: 0.30, blue: 0.24)
-    static let softCritical = Color(red: 0.90, green: 0.46, blue: 0.52)
+    static let softCritical = Color(red: 0.93, green: 0.31, blue: 0.38)
 
     static func green(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? Color(red: 0.32, green: 0.66, blue: 0.41) : green
@@ -453,6 +453,45 @@ enum CodexDisplayMetric: String, CaseIterable, Identifiable {
 
     private var localizedTitles: [String] {
         self == .remaining ? ["显示剩余", "Show remaining"] : ["显示已用", "Show used"]
+    }
+}
+
+enum CodexRingStyle: String, CaseIterable, Identifiable {
+    case classic
+    case concentric
+    case segmented
+    case carousel
+
+    static let carouselStyles: [CodexRingStyle] = [
+        .classic,
+        .concentric,
+        .segmented,
+    ]
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .classic: return CodexLocalization.text("原版圆环", "Classic Ring")
+        case .concentric: return CodexLocalization.text("同心多环", "Concentric Rings")
+        case .segmented: return CodexLocalization.text("分段圆环", "Segmented Ring")
+        case .carousel: return CodexLocalization.text("自动轮播", "Auto Carousel")
+        }
+    }
+
+    static func resolve(title: String) -> CodexRingStyle {
+        allCases.first { item in
+            title == item.rawValue || item.localizedTitles.contains(title)
+        } ?? .concentric
+    }
+
+    private var localizedTitles: [String] {
+        switch self {
+        case .classic: return ["原版圆环", "Classic Ring"]
+        case .concentric: return ["同心多环", "Concentric Rings"]
+        case .segmented: return ["分段圆环", "Segmented Ring"]
+        case .carousel: return ["自动轮播", "Auto Carousel"]
+        }
     }
 }
 

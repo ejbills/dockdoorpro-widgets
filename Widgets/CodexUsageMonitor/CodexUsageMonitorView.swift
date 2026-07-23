@@ -7,7 +7,9 @@ struct CodexUsageMonitorView: View {
     let widgetId: String
     @ObservedObject var monitor: CodexUsageMonitor
     @Environment(\.colorScheme) private var appearance
+    @State private var carouselStartedAt = Date()
 
+    private static let carouselInterval: TimeInterval = 8
     private var dim: CGFloat { min(size.width, size.height) }
     private var slotSpan: WidgetSlotSpan { WidgetSlotSpan.detect(size: size, isVertical: isVertical) }
     private var theme: CodexThemeColors {
@@ -27,15 +29,22 @@ struct CodexUsageMonitorView: View {
             default: CodexDisplayMetric.remaining.title
         ))
     }
+    private var ringStyle: CodexRingStyle {
+        CodexRingStyle.resolve(title: WidgetDefaults.string(
+            key: "ringStyle",
+            widgetId: widgetId,
+            default: CodexRingStyle.concentric.title
+        ))
+    }
     private var showStatus: Bool {
         WidgetDefaults.bool(key: "showStatus", widgetId: widgetId, default: true)
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 10)) { context in
+        TimelineView(.periodic(from: .now, by: Self.carouselInterval)) { context in
             Group {
                 switch slotSpan {
-                case .compact: compactLayout
+                case .compact: compactLayout(at: context.date)
                 case .extended: extendedLayout
                 case .triple: tripleLayout
                 }
@@ -43,29 +52,38 @@ struct CodexUsageMonitorView: View {
             .onChange(of: context.date) { _, _ in monitor.syncConfiguration() }
         }
         .onAppear { monitor.start() }
+        .onChange(of: ringStyle) { _, value in
+            if value == .carousel {
+                carouselStartedAt = Date()
+            }
+        }
     }
 
-    private var compactLayout: some View {
-        Group {
+    private func compactLayout(at date: Date) -> some View {
+        let activeStyle = activeRingStyle(at: date)
+        return Group {
             if let window = monitor.window(for: displayLimit) {
                 ZStack {
-                    CodexQuotaRing(
-                        progress: progress(window),
-                        gradient: ringGradient(window),
-                        lineWidth: max(3, dim * 0.10)
-                    )
-                    .padding(dim * 0.09)
-                    Text("\(Int(percent(window).rounded()))%")
-                        .font(.system(
-                            size: dim * 0.23,
-                            weight: .bold,
-                            design: .rounded
-                        ).monospacedDigit())
-                        .foregroundStyle(valueTint(window))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-                        .padding(dim * 0.18)
+                    compactRing(window, style: activeStyle)
+                        .padding(dim * 0.09)
+                        .id(activeStyle)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+
+                    if activeStyle != .concentric {
+                        Text("\(Int(percent(window).rounded()))%")
+                            .font(.system(
+                                size: dim * 0.23,
+                                weight: .bold,
+                                design: .rounded
+                            ).monospacedDigit())
+                            .foregroundStyle(valueTint(window))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.68)
+                            .padding(dim * 0.18)
+                            .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                    }
                 }
+                .animation(.easeInOut(duration: 0.35), value: activeStyle)
                 .overlay(alignment: .topTrailing) {
                     if showStatus {
                         compactStatusDot
@@ -77,6 +95,40 @@ struct CodexUsageMonitorView: View {
             }
         }
         .padding(dim * 0.06)
+    }
+
+    @ViewBuilder
+    private func compactRing(
+        _ window: CodexQuotaWindow,
+        style: CodexRingStyle
+    ) -> some View {
+        switch style {
+        case .classic, .carousel:
+            CodexQuotaRing(
+                progress: progress(window),
+                gradient: ringGradient(window),
+                lineWidth: max(3, dim * 0.10)
+            )
+        case .concentric:
+            CodexQuarterRings(
+                progress: progress(window),
+                gradient: ringGradient(window)
+            )
+        case .segmented:
+            CodexSegmentedRing(
+                progress: progress(window),
+                gradient: ringGradient(window),
+                lineWidth: max(3, dim * 0.10)
+            )
+        }
+    }
+
+    private func activeRingStyle(at date: Date) -> CodexRingStyle {
+        guard ringStyle == .carousel else { return ringStyle }
+        let elapsed = max(0, date.timeIntervalSince(carouselStartedAt))
+        let index = Int(elapsed / Self.carouselInterval)
+            % CodexRingStyle.carouselStyles.count
+        return CodexRingStyle.carouselStyles[index]
     }
 
     private var extendedLayout: some View {
@@ -313,6 +365,91 @@ struct CodexUsageMonitorView: View {
         default:
             return theme.gradient
         }
+    }
+}
+
+private struct CodexQuarterRings: View {
+    let progress: Double
+    let gradient: LinearGradient
+
+    private var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let diameter = min(proxy.size.width, proxy.size.height)
+            let lineWidth = max(2.4, diameter * 0.082)
+            let gap = max(0.75, diameter * 0.014)
+            let step = lineWidth + gap
+
+            ZStack {
+                ForEach(0..<4, id: \.self) { index in
+                    let ringProgress = min(
+                        max(clampedProgress * 4 - Double(index), 0),
+                        1
+                    )
+                    let inset = CGFloat(index) * step
+
+                    Circle()
+                        .stroke(Color.primary.opacity(0.10), lineWidth: lineWidth)
+                        .padding(inset)
+                    Circle()
+                        .trim(from: 0, to: ringProgress)
+                        .stroke(
+                            gradient,
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .padding(inset)
+                }
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .animation(.easeInOut(duration: 0.30), value: clampedProgress)
+    }
+}
+
+private struct CodexSegmentedRing: View {
+    let progress: Double
+    let gradient: LinearGradient
+    let lineWidth: CGFloat
+
+    private var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<4, id: \.self) { index in
+                let segmentProgress = min(
+                    max(clampedProgress * 4 - Double(index), 0),
+                    1
+                )
+                let segmentStart = Double(index) * 0.25 + 0.006
+                let segmentEnd = Double(index + 1) * 0.25 - 0.006
+                let progressEnd = segmentStart
+                    + (segmentEnd - segmentStart) * segmentProgress
+
+                Circle()
+                    .trim(from: segmentStart, to: segmentEnd)
+                    .stroke(
+                        Color.primary.opacity(0.10),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt)
+                    )
+
+                if segmentProgress > 0 {
+                    Circle()
+                        .trim(from: segmentStart, to: progressEnd)
+                        .stroke(
+                            gradient,
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt)
+                        )
+                }
+            }
+        }
+        .rotationEffect(.degrees(-90))
+        .animation(.easeInOut(duration: 0.30), value: clampedProgress)
     }
 }
 

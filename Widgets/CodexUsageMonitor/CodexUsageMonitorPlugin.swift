@@ -31,6 +31,12 @@ final class CodexUsageMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
                 defaultValue: CodexDisplayMetric.remaining.title
             ),
             .picker(
+                key: "ringStyle",
+                label: CodexLocalization.text("单槽圆环", "Single-Slot Ring"),
+                options: CodexRingStyle.allCases.map(\.title),
+                defaultValue: CodexRingStyle.concentric.title
+            ),
+            .picker(
                 key: "colorTheme",
                 label: CodexLocalization.text("主题颜色", "Color Theme"),
                 options: CodexColorTheme.allCases.map(\.title),
@@ -71,6 +77,10 @@ final class CodexUsageMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
         if let value = defaults.string(forKey: prefix + "displayMetric") {
             let normalized = CodexDisplayMetric.resolve(title: value).title
             if value != normalized { defaults.set(normalized, forKey: prefix + "displayMetric") }
+        }
+        if let value = defaults.string(forKey: prefix + "ringStyle") {
+            let normalized = CodexRingStyle.resolve(title: value).title
+            if value != normalized { defaults.set(normalized, forKey: prefix + "ringStyle") }
         }
         if let value = defaults.string(forKey: prefix + "colorTheme") {
             let normalized = CodexColorTheme.resolve(widgetId: id).title

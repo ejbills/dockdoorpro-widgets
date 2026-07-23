@@ -20,6 +20,7 @@ struct CodexUsageMonitorPanel: View {
     #endif
     @State private var displayLimit = CodexDisplayLimit.weekly
     @State private var displayMetric = CodexDisplayMetric.remaining
+    @State private var ringStyle = CodexRingStyle.concentric
     @State private var colorTheme = CodexColorTheme.codex
     @State private var quotaUsageSource = CodexQuotaUsageSource.automatic
     @State private var refreshInterval = CodexRefreshInterval.fiveMinutes
@@ -994,6 +995,13 @@ struct CodexUsageMonitorPanel: View {
                     monitor.writeSetting(value.title, key: "displayMetric")
                 }
                 CodexGlassDivider()
+                settingPicker(CodexLocalization.text("单槽圆环", "Single-Slot Ring"), selection: $ringStyle) {
+                    ForEach(CodexRingStyle.allCases) { Text($0.title).tag($0) }
+                }
+                .onChange(of: ringStyle) { _, value in
+                    monitor.writeSetting(value.title, key: "ringStyle")
+                }
+                CodexGlassDivider()
                 settingPicker(CodexLocalization.text("主题", "Theme"), selection: $colorTheme) {
                     ForEach(CodexColorTheme.allCases) { Text($0.title).tag($0) }
                 }
@@ -1270,6 +1278,11 @@ struct CodexUsageMonitorPanel: View {
             key: "displayMetric",
             widgetId: widgetId,
             default: CodexDisplayMetric.remaining.title
+        ))
+        ringStyle = CodexRingStyle.resolve(title: WidgetDefaults.string(
+            key: "ringStyle",
+            widgetId: widgetId,
+            default: CodexRingStyle.concentric.title
         ))
         colorTheme = CodexColorTheme.resolve(widgetId: widgetId)
         quotaUsageSource = CodexQuotaUsageSource.resolve(title: WidgetDefaults.string(
