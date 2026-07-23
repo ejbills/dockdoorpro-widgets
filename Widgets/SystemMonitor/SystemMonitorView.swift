@@ -75,14 +75,14 @@ struct SystemMonitorView: View {
             } else if showCPU {
                 compactSingleRing(
                     title: "CPU",
-                    symbolName: "cpu",
+                    symbolName: "cpu.fill",
                     value: SystemValueFormatter.percent(monitor.cpu.used),
                     segments: cpuSegments
                 )
             } else if showMemory {
                 compactSingleRing(
                     title: "Memory",
-                    symbolName: "memorychip",
+                    symbolName: "memorychip.fill",
                     value: SystemValueFormatter.percent(monitor.memory.usedFraction),
                     segments: memorySegments
                 )
@@ -145,7 +145,7 @@ struct SystemMonitorView: View {
     private var tripleCPUMetric: some View {
         tripleMetric(
             title: "CPU",
-            symbolName: "cpu",
+            symbolName: "cpu.fill",
             value: SystemValueFormatter.percent(monitor.cpu.used),
             segments: cpuSegments,
             detail: SystemValueFormatter.temperature(monitor.cpuTemperature),
@@ -157,7 +157,7 @@ struct SystemMonitorView: View {
     private var tripleMemoryMetric: some View {
         tripleMetric(
             title: "Memory",
-            symbolName: "memorychip",
+            symbolName: "memorychip.fill",
             value: SystemValueFormatter.percent(monitor.memory.usedFraction),
             segments: memorySegments,
             detail: monitor.memory.pressure.rawValue,
@@ -186,7 +186,7 @@ struct SystemMonitorView: View {
 
             VStack(alignment: .leading, spacing: max(dim * 0.025, 1)) {
                 Image(systemName: symbolName)
-                    .font(.system(size: max(dim * 0.14, 8), weight: .bold))
+                    .font(.system(size: max(dim * 0.14, 8), weight: .semibold))
                     .foregroundStyle(.secondary)
 
                 Text(detail)
@@ -221,7 +221,7 @@ struct SystemMonitorView: View {
                     .font(.system(size: dim * 0.18, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.primary)
                 Image(systemName: symbolName)
-                    .font(.system(size: max(dim * 0.15, 8), weight: .bold))
+                    .font(.system(size: max(dim * 0.15, 8), weight: .semibold))
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
@@ -238,7 +238,7 @@ struct SystemMonitorView: View {
             value: SystemValueFormatter.percent(monitor.cpu.used),
             segments: cpuSegments,
             size: dim * WidgetMetrics.contentScale,
-            symbolName: "cpu",
+            symbolName: "cpu.fill",
             showsTitle: false
         )
     }
@@ -249,7 +249,7 @@ struct SystemMonitorView: View {
             value: SystemValueFormatter.percent(monitor.memory.usedFraction),
             segments: memorySegments,
             size: dim * WidgetMetrics.contentScale,
-            symbolName: "memorychip",
+            symbolName: "memorychip.fill",
             showsTitle: false
         )
     }

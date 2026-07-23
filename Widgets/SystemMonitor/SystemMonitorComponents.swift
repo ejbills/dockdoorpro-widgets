@@ -32,8 +32,8 @@ enum SystemMonitorPalette {
         dark: NSColor(red: 0.31, green: 0.62, blue: 0.40, alpha: 1)
     )
     static let widgetStatusNormal = adaptive(
-        light: NSColor(red: 0.30, green: 0.58, blue: 0.38, alpha: 1),
-        dark: NSColor(red: 0.43, green: 0.64, blue: 0.48, alpha: 1)
+        light: NSColor(red: 0.22, green: 0.68, blue: 0.35, alpha: 1),
+        dark: NSColor(red: 0.40, green: 0.72, blue: 0.48, alpha: 1)
     )
     static let widgetStatusWarning = adaptive(
         light: NSColor(red: 0.73, green: 0.47, blue: 0.14, alpha: 1),
@@ -156,7 +156,7 @@ struct MetricRingView: View {
 
                     if let symbolName {
                         Image(systemName: symbolName)
-                            .font(.system(size: max(size * 0.16, 8), weight: .bold))
+                            .font(.system(size: max(size * 0.16, 8), weight: .semibold))
                             .foregroundStyle(.secondary)
                     }
                 }
