@@ -31,6 +31,30 @@ enum SystemMonitorPalette {
         light: NSColor(red: 0.20, green: 0.78, blue: 0.35, alpha: 1),
         dark: NSColor(red: 0.31, green: 0.62, blue: 0.40, alpha: 1)
     )
+    static let widgetStatusNormal = adaptive(
+        light: NSColor(red: 0.30, green: 0.58, blue: 0.38, alpha: 1),
+        dark: NSColor(red: 0.43, green: 0.64, blue: 0.48, alpha: 1)
+    )
+    static let widgetStatusWarning = adaptive(
+        light: NSColor(red: 0.73, green: 0.47, blue: 0.14, alpha: 1),
+        dark: NSColor(red: 0.76, green: 0.54, blue: 0.27, alpha: 1)
+    )
+    static let widgetStatusCritical = adaptive(
+        light: NSColor(red: 0.78, green: 0.33, blue: 0.32, alpha: 1),
+        dark: NSColor(red: 0.82, green: 0.42, blue: 0.41, alpha: 1)
+    )
+    static let widgetCPUSystem = adaptive(
+        light: NSColor(red: 0.84, green: 0.35, blue: 0.37, alpha: 1),
+        dark: NSColor(red: 0.75, green: 0.36, blue: 0.38, alpha: 1)
+    )
+    static let widgetMemoryWired = adaptive(
+        light: NSColor(red: 0.83, green: 0.53, blue: 0.24, alpha: 1),
+        dark: NSColor(red: 0.72, green: 0.45, blue: 0.24, alpha: 1)
+    )
+    static let widgetMemoryCompressed = adaptive(
+        light: NSColor(red: 0.82, green: 0.31, blue: 0.45, alpha: 1),
+        dark: NSColor(red: 0.74, green: 0.31, blue: 0.42, alpha: 1)
+    )
     static let statusWarning = adaptive(
         light: NSColor(red: 1.00, green: 0.58, blue: 0.00, alpha: 1),
         dark: NSColor(red: 0.74, green: 0.48, blue: 0.25, alpha: 1)
@@ -104,6 +128,8 @@ struct MetricRingView: View {
     let segments: [UsageSegment]
     let size: CGFloat
     var subtitle: String? = nil
+    var symbolName: String? = nil
+    var showsTitle = true
 
     var body: some View {
         VStack(spacing: max(size * 0.07, 2)) {
@@ -127,15 +153,26 @@ struct MetricRingView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+
+                    if let symbolName {
+                        Image(systemName: symbolName)
+                            .font(.system(size: max(size * 0.16, 8), weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .frame(width: size, height: size)
 
-            Text(title)
-                .font(.system(size: max(size * 0.13, 8), weight: .semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if showsTitle {
+                Text(title)
+                    .font(.system(size: max(size * 0.13, 8), weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
     }
 }
 

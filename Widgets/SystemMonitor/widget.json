@@ -5,6 +5,7 @@
     "description": "Live CPU and memory rings with hardware temperature, CPU frequency, history, and per-process PID tooltips.",
     "iconSymbol": "gauge.with.dots.needle.67percent",
     "orientations": ["horizontal", "vertical"],
+    "maxSlotSpan": 3,
     "principalClass": "SystemMonitorPlugin",
     "sources": [
         "SystemMonitorPlugin.swift",

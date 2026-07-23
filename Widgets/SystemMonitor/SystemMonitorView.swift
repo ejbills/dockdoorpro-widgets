@@ -17,10 +17,8 @@ struct SystemMonitorView: View {
         WidgetDefaults.bool(key: "showMemory", widgetId: widgetId, default: true)
     }
 
-    private var isExtended: Bool {
-        isVertical
-            ? size.height > size.width * 1.5
-            : size.width > size.height * 1.5
+    private var slotSpan: WidgetSlotSpan {
+        WidgetSlotSpan.detect(size: size, isVertical: isVertical)
     }
 
     private var refreshInterval: TimeInterval {
@@ -34,10 +32,13 @@ struct SystemMonitorView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: refreshInterval)) { context in
             Group {
-                if isExtended {
-                    extendedLayout
-                } else {
+                switch slotSpan {
+                case .compact:
                     compactLayout
+                case .extended:
+                    extendedLayout
+                case .triple:
+                    tripleLayout
                 }
             }
             .onChange(of: context.date) { _, _ in
@@ -74,12 +75,14 @@ struct SystemMonitorView: View {
             } else if showCPU {
                 compactSingleRing(
                     title: "CPU",
+                    symbolName: "cpu",
                     value: SystemValueFormatter.percent(monitor.cpu.used),
                     segments: cpuSegments
                 )
             } else if showMemory {
                 compactSingleRing(
                     title: "Memory",
+                    symbolName: "memorychip",
                     value: SystemValueFormatter.percent(monitor.memory.usedFraction),
                     segments: memorySegments
                 )
@@ -115,8 +118,94 @@ struct SystemMonitorView: View {
         .padding(dim * 0.08)
     }
 
+    private var tripleLayout: some View {
+        Group {
+            if showCPU && showMemory && isVertical {
+                VStack(spacing: dim * 0.12) {
+                    tripleCPUMetric
+                    tripleMemoryMetric
+                }
+            } else if showCPU && showMemory {
+                HStack(spacing: dim * WidgetMetrics.spacingScale) {
+                    tripleCPUMetric
+                    tripleMemoryMetric
+                }
+            } else if showCPU {
+                tripleCPUMetric
+            } else if showMemory {
+                tripleMemoryMetric
+            } else {
+                Color.clear
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(isVertical ? dim * 0.04 : dim * 0.08)
+    }
+
+    private var tripleCPUMetric: some View {
+        tripleMetric(
+            title: "CPU",
+            symbolName: "cpu",
+            value: SystemValueFormatter.percent(monitor.cpu.used),
+            segments: cpuSegments,
+            detail: SystemValueFormatter.temperature(monitor.cpuTemperature),
+            detailLabel: "Temperature",
+            detailColor: cpuTemperatureColor
+        )
+    }
+
+    private var tripleMemoryMetric: some View {
+        tripleMetric(
+            title: "Memory",
+            symbolName: "memorychip",
+            value: SystemValueFormatter.percent(monitor.memory.usedFraction),
+            segments: memorySegments,
+            detail: monitor.memory.pressure.rawValue,
+            detailLabel: "Pressure",
+            detailColor: memoryPressureColor
+        )
+    }
+
+    private func tripleMetric(
+        title: String,
+        symbolName: String,
+        value: String,
+        segments: [UsageSegment],
+        detail: String,
+        detailLabel: String,
+        detailColor: Color
+    ) -> some View {
+        HStack(spacing: dim * 0.04) {
+            MetricRingView(
+                title: title,
+                value: value,
+                segments: segments,
+                size: dim * (isVertical ? 0.48 : WidgetMetrics.contentScale),
+                showsTitle: false
+            )
+
+            VStack(alignment: .leading, spacing: max(dim * 0.025, 1)) {
+                Image(systemName: symbolName)
+                    .font(.system(size: max(dim * 0.14, 8), weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                Text(detail)
+                    .font(.system(size: max(dim * 0.105, 7), weight: .semibold, design: .rounded))
+                    .foregroundStyle(detailColor)
+                    .monospacedDigit()
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue("\(value), \(detailLabel) \(detail)")
+    }
+
     private func compactSingleRing(
         title: String,
+        symbolName: String,
         value: String,
         segments: [UsageSegment]
     ) -> some View {
@@ -131,13 +220,16 @@ struct SystemMonitorView: View {
                 Text(value)
                     .font(.system(size: dim * 0.18, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.primary)
-                Text(title)
-                    .font(.system(size: max(dim * 0.10, 5), weight: .semibold))
+                Image(systemName: symbolName)
+                    .font(.system(size: max(dim * 0.15, 8), weight: .bold))
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.65)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
     }
 
     private var cpuRing: some View {
@@ -145,7 +237,9 @@ struct SystemMonitorView: View {
             title: "CPU",
             value: SystemValueFormatter.percent(monitor.cpu.used),
             segments: cpuSegments,
-            size: dim * 0.72
+            size: dim * WidgetMetrics.contentScale,
+            symbolName: "cpu",
+            showsTitle: false
         )
     }
 
@@ -154,14 +248,31 @@ struct SystemMonitorView: View {
             title: "Memory",
             value: SystemValueFormatter.percent(monitor.memory.usedFraction),
             segments: memorySegments,
-            size: dim * 0.72
+            size: dim * WidgetMetrics.contentScale,
+            symbolName: "memorychip",
+            showsTitle: false
         )
+    }
+
+    private var cpuTemperatureColor: Color {
+        guard let temperature = monitor.cpuTemperature else { return .secondary }
+        if temperature >= 90 { return SystemMonitorPalette.widgetStatusCritical }
+        if temperature >= 70 { return SystemMonitorPalette.widgetStatusWarning }
+        return SystemMonitorPalette.widgetStatusNormal
+    }
+
+    private var memoryPressureColor: Color {
+        switch monitor.memory.pressure {
+        case .normal: return SystemMonitorPalette.widgetStatusNormal
+        case .warning: return SystemMonitorPalette.widgetStatusWarning
+        case .critical: return SystemMonitorPalette.widgetStatusCritical
+        }
     }
 
     private var cpuSegments: [UsageSegment] {
         [
             UsageSegment(id: "user", fraction: monitor.cpu.user, color: SystemMonitorPalette.cpuUser),
-            UsageSegment(id: "system", fraction: monitor.cpu.system, color: SystemMonitorPalette.cpuSystem),
+            UsageSegment(id: "system", fraction: monitor.cpu.system, color: SystemMonitorPalette.widgetCPUSystem),
             UsageSegment(id: "idle", fraction: monitor.cpu.idle, color: SystemMonitorPalette.available),
         ]
     }
@@ -170,8 +281,8 @@ struct SystemMonitorView: View {
         let total = max(monitor.memory.total, 1)
         return [
             UsageSegment(id: "app", fraction: monitor.memory.app / total, color: SystemMonitorPalette.memoryApp),
-            UsageSegment(id: "wired", fraction: monitor.memory.wired / total, color: SystemMonitorPalette.memoryWired),
-            UsageSegment(id: "compressed", fraction: monitor.memory.compressed / total, color: SystemMonitorPalette.memoryCompressed),
+            UsageSegment(id: "wired", fraction: monitor.memory.wired / total, color: SystemMonitorPalette.widgetMemoryWired),
+            UsageSegment(id: "compressed", fraction: monitor.memory.compressed / total, color: SystemMonitorPalette.widgetMemoryCompressed),
             UsageSegment(id: "available", fraction: monitor.memory.available / total, color: SystemMonitorPalette.available),
         ]
     }
