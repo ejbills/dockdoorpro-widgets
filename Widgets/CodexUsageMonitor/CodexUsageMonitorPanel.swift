@@ -10,6 +10,7 @@ struct CodexUsageMonitorPanel: View {
     #if CODEX_USAGE_TESTING
     @State private var page: CodexPanelPage = {
         switch UserDefaults.standard.string(forKey: "codexUsage.testing.page") {
+        case "conversations": return .conversations
         case "status": return .status
         case "settings": return .settings
         default: return .overview
@@ -33,6 +34,7 @@ struct CodexUsageMonitorPanel: View {
     @State private var hoveredHeaderPage: CodexPanelPage? = {
         switch UserDefaults.standard.string(forKey: "codexUsage.testing.hoveredHeaderPage") {
         case "overview": return .overview
+        case "conversations": return .conversations
         case "status": return .status
         case "settings": return .settings
         default: return nil
@@ -50,6 +52,12 @@ struct CodexUsageMonitorPanel: View {
     private let panelWidth: CGFloat = 360
     private let panelContentWidth: CGFloat = 332
     private var theme: CodexThemeColors { colorTheme.colors(for: appearance) }
+    private var panelHeight: CGFloat {
+        switch page {
+        case .conversations, .status: return 520
+        case .overview, .settings: return 490
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,6 +69,7 @@ struct CodexUsageMonitorPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     switch page {
                     case .overview: overviewPage
+                    case .conversations: conversationsPage
                     case .status: statusPage
                     case .settings: settingsPage
                     }
@@ -70,7 +79,7 @@ struct CodexUsageMonitorPanel: View {
             }
             .frame(
                 width: panelWidth,
-                height: page == .status ? 520 : 490,
+                height: panelHeight,
                 alignment: .topLeading
             )
             .scrollIndicators(.hidden)
@@ -100,6 +109,19 @@ struct CodexUsageMonitorPanel: View {
         .onChange(of: monitor.settingsRevision) { _, _ in
             loadSettings()
         }
+        .task(id: page) {
+            guard page == .conversations else { return }
+            monitor.refreshConversations()
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(20))
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                monitor.refreshConversations()
+            }
+        }
     }
 
     private var header: some View {
@@ -118,7 +140,7 @@ struct CodexUsageMonitorPanel: View {
 
             Spacer()
 
-            if monitor.isRefreshing {
+            if monitor.isRefreshing || monitor.isRefreshingConversations {
                 ProgressView().controlSize(.mini)
             } else if showStatus || page == .status {
                 CodexPulseDot(
@@ -130,6 +152,11 @@ struct CodexUsageMonitorPanel: View {
                 symbol: "chart.pie.fill",
                 target: .overview,
                 help: CodexLocalization.text("额度与 Token 使用", "Quota and Token usage")
+            )
+            headerButton(
+                symbol: "bubble.left.and.text.bubble.right.fill",
+                target: .conversations,
+                help: CodexLocalization.text("最近 Codex 对话与任务", "Recent Codex conversations and tasks")
             )
             headerButton(
                 symbol: "waveform.path.ecg",
@@ -211,6 +238,7 @@ struct CodexUsageMonitorPanel: View {
     private var headerSymbol: String {
         switch page {
         case .overview: return "terminal.fill"
+        case .conversations: return "bubble.left.and.text.bubble.right.fill"
         case .status: return "waveform.path.ecg"
         case .settings: return "gearshape.fill"
         }
@@ -219,6 +247,7 @@ struct CodexUsageMonitorPanel: View {
     private var headerTitle: String {
         switch page {
         case .overview: return "Codex"
+        case .conversations: return CodexLocalization.text("最近对话", "Recent Conversations")
         case .status: return CodexLocalization.text("OpenAI 状态", "OpenAI Status")
         case .settings: return CodexLocalization.text("Codex 设置", "Codex Settings")
         }
@@ -228,6 +257,14 @@ struct CodexUsageMonitorPanel: View {
         switch page {
         case .overview:
             return monitor.usage?.accountEmail ?? CodexLocalization.text("额度监控", "Quota monitor")
+        case .conversations:
+            if let snapshot = monitor.recentConversations {
+                return CodexLocalization.text(
+                    "\(snapshot.conversations.count) 条本地记录",
+                    "\(snapshot.conversations.count) local records"
+                )
+            }
+            return CodexLocalization.text("本地 Codex 记录", "Local Codex history")
         case .status:
             if CodexLocalization.isChinese {
                 return monitor.serviceStatus?.overallIndicator.label ?? "ChatGPT 与 Codex"
@@ -857,6 +894,140 @@ struct CodexUsageMonitorPanel: View {
     }
 
     @ViewBuilder
+    private var conversationsPage: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let snapshot = monitor.recentConversations {
+                HStack(spacing: 10) {
+                    metricTile(
+                        title: CodexLocalization.text("最近记录", "Recent"),
+                        value: "\(snapshot.conversations.count)",
+                        symbol: "bubble.left.and.text.bubble.right.fill",
+                        color: theme.primary
+                    )
+                    metricTile(
+                        title: CodexLocalization.text("项目", "Projects"),
+                        value: "\(snapshot.projectCount)",
+                        symbol: "folder.fill",
+                        color: theme.secondary
+                    )
+                    metricTile(
+                        title: CodexLocalization.text("活跃", "Active"),
+                        value: "\(snapshot.activeCount)",
+                        symbol: "bolt.fill",
+                        color: CodexPalette.green(for: appearance)
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 7) {
+                    codexSectionLabel(CodexLocalization.text("最近 CODEX 对话 / 任务", "RECENT CODEX CONVERSATIONS / TASKS"))
+
+                    if snapshot.conversations.isEmpty {
+                        conversationEmptyCard
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(snapshot.conversations.enumerated()), id: \.element.id) { index, conversation in
+                                CodexConversationRow(
+                                    conversation: conversation,
+                                    theme: theme,
+                                    activeColor: CodexPalette.green(for: appearance)
+                                ) {
+                                    openConversation(conversation)
+                                }
+                                if index < snapshot.conversations.count - 1 {
+                                    CodexGlassDivider().padding(.leading, 43)
+                                }
+                            }
+                        }
+                        .background(CodexGlassCard(cornerRadius: 10))
+                    }
+                }
+
+                conversationsFooter(snapshot)
+            } else {
+                conversationLoadingCard
+            }
+        }
+    }
+
+    private var conversationLoadingCard: some View {
+        VStack(spacing: 10) {
+            ProgressView().controlSize(.small)
+            Text(CodexLocalization.text(
+                "正在读取最近 Codex 对话…",
+                "Loading recent Codex conversations…"
+            ))
+                .font(.system(size: 10, weight: .medium))
+            Text(CodexLocalization.text(
+                "只读扫描 ~/.codex/sessions，不会保存对话内容。",
+                "Read-only scan of ~/.codex/sessions; conversation content is not saved."
+            ))
+                .font(.system(size: 8.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(28)
+        .background(CodexGlassCard(cornerRadius: 12))
+    }
+
+    private var conversationEmptyCard: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "bubble.left.and.exclamationmark.bubble.right")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(theme.gradient)
+            Text(CodexLocalization.text("暂无本地 Codex 对话", "No local Codex conversations"))
+                .font(.system(size: 11, weight: .semibold))
+            Text(CodexLocalization.text(
+                "开始一个 Codex 任务后，记录会自动出现在这里。",
+                "Start a Codex task and it will appear here automatically."
+            ))
+                .font(.system(size: 8.5))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .background(CodexGlassCard(cornerRadius: 10))
+    }
+
+    private func conversationsFooter(_ snapshot: CodexConversationSnapshot) -> some View {
+        HStack(spacing: 12) {
+            Label(
+                snapshot.updatedAt.formatted(date: .omitted, time: .shortened),
+                systemImage: "checkmark.circle"
+            )
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button { openCodexApp() } label: {
+                Image(systemName: "terminal.fill")
+            }
+            .buttonStyle(.plain)
+            .modifier(CodexFooterActionHover(
+                testingID: "open-codex",
+                help: CodexLocalization.text("打开 Codex", "Open Codex"),
+                accent: theme.primary,
+                restingColor: .secondary,
+                tipAlignment: .top
+            ))
+            Button { monitor.refreshConversations() } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.plain)
+            .disabled(monitor.isRefreshingConversations)
+            .modifier(CodexFooterActionHover(
+                testingID: "refresh-conversations",
+                help: monitor.isRefreshingConversations
+                    ? CodexLocalization.text("正在刷新最近对话", "Refreshing recent conversations")
+                    : CodexLocalization.text("刷新最近对话", "Refresh recent conversations"),
+                accent: theme.primary,
+                restingColor: .secondary,
+                tipAlignment: .topTrailing
+            ))
+        }
+        .font(.system(size: 11, weight: .semibold))
+    }
+
+    @ViewBuilder
     private var statusPage: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let status = monitor.serviceStatus {
@@ -1316,6 +1487,26 @@ struct CodexUsageMonitorPanel: View {
         NSWorkspace.shared.open(url)
     }
 
+    private func openConversation(_ conversation: CodexRecentConversation) {
+        if let deepLink = conversation.codexDeepLink {
+            NSWorkspace.shared.open(deepLink)
+        } else {
+            openCodexApp()
+        }
+    }
+
+    private func openCodexApp() {
+        let applicationURL = URL(fileURLWithPath: "/Applications/Codex.app")
+        if FileManager.default.fileExists(atPath: applicationURL.path) {
+            NSWorkspace.shared.open(applicationURL)
+        } else {
+            NSWorkspace.shared.open(
+                FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent(".codex", isDirectory: true)
+            )
+        }
+    }
+
     private var panelBackground: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial)
@@ -1347,10 +1538,104 @@ struct CodexUsageMonitorPanel: View {
     }
 }
 
-private enum CodexPanelPage {
+private enum CodexPanelPage: Hashable {
     case overview
+    case conversations
     case status
     case settings
+}
+
+private struct CodexConversationRow: View {
+    let conversation: CodexRecentConversation
+    let theme: CodexThemeColors
+    let activeColor: Color
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    private var icon: String {
+        if conversation.isActive { return "bolt.fill" }
+        if conversation.isArchived { return "archivebox.fill" }
+        return "bubble.left.fill"
+    }
+
+    private var stateText: String {
+        if conversation.isActive {
+            return CodexLocalization.text("活跃", "Active")
+        }
+        if conversation.isArchived {
+            return CodexLocalization.text("归档", "Archived")
+        }
+        return CodexLocalization.text("历史", "History")
+    }
+
+    private var stateColor: Color {
+        conversation.isActive ? activeColor : theme.secondary
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(stateColor.opacity(isHovered ? 0.18 : 0.11))
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(stateColor)
+                }
+                .frame(width: 30, height: 30)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(conversation.title ?? CodexLocalization.text("未命名任务", "Untitled task"))
+                        .font(.system(size: 10, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    HStack(spacing: 5) {
+                        Text(conversation.projectName)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text("·")
+                        Text(conversation.relativeActivity)
+                            .lineLimit(1)
+                    }
+                    .font(.system(size: 8.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 6)
+
+                Text(stateText)
+                    .font(.system(size: 7.5, weight: .semibold))
+                    .foregroundStyle(stateColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(stateColor.opacity(0.10), in: Capsule())
+
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(isHovered ? theme.primary : Color.secondary.opacity(0.55))
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+            .background(
+                theme.primary.opacity(isHovered ? 0.07 : 0),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isHovered ? 1.008 : 1)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.14)) {
+                isHovered = hovering
+            }
+        }
+        .help(CodexLocalization.text("在 Codex 中打开", "Open in Codex"))
+        .accessibilityLabel(
+            conversation.title ?? CodexLocalization.text("未命名任务", "Untitled task")
+        )
+        .accessibilityHint(CodexLocalization.text("在 Codex 中打开此任务", "Open this task in Codex"))
+    }
 }
 
 private struct CodexUsageTooltipSizePreferenceKey: PreferenceKey {

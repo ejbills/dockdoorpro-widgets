@@ -6,8 +6,10 @@ import Foundation
 final class CodexUsageMonitor: ObservableObject {
     @Published private(set) var usage: CodexUsageSnapshot?
     @Published private(set) var recentUsage: CodexRecentUsageSnapshot?
+    @Published private(set) var recentConversations: CodexConversationSnapshot?
     @Published private(set) var serviceStatus: OpenAIStatusSnapshot?
     @Published private(set) var isRefreshing = false
+    @Published private(set) var isRefreshingConversations = false
     @Published private(set) var usageError: String?
     @Published private(set) var tokenUsageError: String?
     @Published private(set) var statusError: String?
@@ -18,8 +20,10 @@ final class CodexUsageMonitor: ObservableObject {
 
     private let service: CodexUsageService
     private let localUsageScanner: CodexLocalUsageScanner
+    private let conversationScanner: CodexConversationScanner
     private var refreshLoop: Task<Void, Never>?
     private var refreshOperation: Task<Void, Never>?
+    private var conversationRefreshOperation: Task<Void, Never>?
     private var defaultsObserver: AnyCancellable?
     private var hasStarted = false
     private var scheduledInterval: CodexRefreshInterval
@@ -28,11 +32,13 @@ final class CodexUsageMonitor: ObservableObject {
     init(
         widgetId: String,
         service: CodexUsageService = CodexUsageService(),
-        localUsageScanner: CodexLocalUsageScanner = CodexLocalUsageScanner()
+        localUsageScanner: CodexLocalUsageScanner = CodexLocalUsageScanner(),
+        conversationScanner: CodexConversationScanner = CodexConversationScanner()
     ) {
         self.widgetId = widgetId
         self.service = service
         self.localUsageScanner = localUsageScanner
+        self.conversationScanner = conversationScanner
         scheduledInterval = Self.readRefreshInterval(widgetId: widgetId)
         scheduledQuotaUsageSource = Self.readQuotaUsageSource(widgetId: widgetId)
         usage = Self.readCache(CodexUsageSnapshot.self, key: Self.usageCacheKey(widgetId))
@@ -55,6 +61,7 @@ final class CodexUsageMonitor: ObservableObject {
     deinit {
         refreshLoop?.cancel()
         refreshOperation?.cancel()
+        conversationRefreshOperation?.cancel()
     }
 
     func start() {
@@ -67,9 +74,22 @@ final class CodexUsageMonitor: ObservableObject {
     func refresh() {
         refreshOperation?.cancel()
         isRefreshing = true
+        isRefreshingConversations = true
         refreshOperation = Task { [weak self] in
             guard let self else { return }
             await self.performRefresh()
+        }
+    }
+
+    func refreshConversations() {
+        conversationRefreshOperation?.cancel()
+        isRefreshingConversations = true
+        let scanner = conversationScanner
+        conversationRefreshOperation = Task { [weak self] in
+            let snapshot = await scanner.scan()
+            guard let self, !Task.isCancelled else { return }
+            recentConversations = snapshot
+            isRefreshingConversations = false
         }
     }
 
@@ -107,11 +127,13 @@ final class CodexUsageMonitor: ObservableObject {
     func setTestingData(
         usage: CodexUsageSnapshot?,
         status: OpenAIStatusSnapshot?,
-        recentUsage: CodexRecentUsageSnapshot? = nil
+        recentUsage: CodexRecentUsageSnapshot? = nil,
+        recentConversations: CodexConversationSnapshot? = nil
     ) {
         self.usage = usage
         serviceStatus = status
         self.recentUsage = recentUsage
+        self.recentConversations = recentConversations
         resolvedQuotaUsageSource = .oauth
         isRefreshing = false
         hasStarted = true
@@ -122,6 +144,7 @@ final class CodexUsageMonitor: ObservableObject {
         let quotaSource = scheduledQuotaUsageSource
         async let usageResult = Self.capture { try await self.service.fetchUsage(source: quotaSource) }
         async let tokenUsageResult = Self.capture { try await self.localUsageScanner.scan() }
+        async let conversationSnapshot = self.conversationScanner.scan()
         async let statusResult = Self.capture { try await self.service.fetchStatus() }
 
         switch await usageResult {
@@ -155,6 +178,8 @@ final class CodexUsageMonitor: ObservableObject {
         case let .failure(error):
             if !Task.isCancelled { statusError = error.localizedDescription }
         }
+        recentConversations = await conversationSnapshot
+        isRefreshingConversations = false
         isRefreshing = false
     }
 

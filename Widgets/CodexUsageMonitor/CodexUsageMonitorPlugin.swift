@@ -7,8 +7,8 @@ final class CodexUsageMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
     var iconSymbol: String { "terminal.fill" }
     var widgetDescription: String {
         CodexLocalization.text(
-            "Codex 额度、最近 Token 用量及 ChatGPT/Codex 服务状态。",
-            "Codex quota, recent token usage, and ChatGPT/Codex service status."
+            "Codex 额度、最近 Token 用量、最近任务及 ChatGPT/Codex 服务状态。",
+            "Codex quota, recent token usage, recent tasks, and ChatGPT/Codex service status."
         )
     }
     var supportedOrientations: [WidgetOrientation] { [.horizontal, .vertical] }
