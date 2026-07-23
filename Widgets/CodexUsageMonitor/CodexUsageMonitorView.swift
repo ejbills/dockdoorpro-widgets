@@ -1,3 +1,4 @@
+import AppKit
 import DockDoorWidgetSDK
 import SwiftUI
 
@@ -112,7 +113,7 @@ struct CodexUsageMonitorView: View {
         case .concentric:
             CodexQuarterRings(
                 progress: progress(window),
-                gradient: ringGradient(window)
+                colors: ringColors(window)
             )
         case .segmented:
             CodexSegmentedRing(
@@ -343,37 +344,81 @@ struct CodexUsageMonitorView: View {
     }
 
     private func ringGradient(_ window: CodexQuotaWindow) -> LinearGradient {
+        LinearGradient(
+            colors: ringColors(window),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private func ringColors(_ window: CodexQuotaWindow) -> [Color] {
+        let baseColors: [Color]
         switch window.remainingPercent {
         case ..<10:
-            return LinearGradient(
-                colors: [
-                    CodexPalette.softCritical(for: appearance),
-                    CodexPalette.orange(for: appearance).opacity(0.88),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            baseColors = [
+                CodexPalette.softCritical(for: appearance),
+                CodexPalette.orange(for: appearance).opacity(0.88),
+            ]
         case ..<25:
-            return LinearGradient(
-                colors: [
-                    CodexPalette.yellow(for: appearance),
-                    CodexPalette.orange(for: appearance),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            baseColors = [
+                CodexPalette.yellow(for: appearance),
+                CodexPalette.orange(for: appearance),
+            ]
         default:
-            return theme.gradient
+            baseColors = [theme.primary, theme.secondary]
         }
+
+        guard let primary = baseColors.first,
+              let secondary = baseColors.last
+        else {
+            return baseColors
+        }
+        return [
+            blendedRingColor(primary, secondary, fraction: 0.15),
+            blendedRingColor(primary, secondary, fraction: 0.85),
+        ]
+    }
+
+    private func blendedRingColor(
+        _ primary: Color,
+        _ secondary: Color,
+        fraction: CGFloat
+    ) -> Color {
+        guard let start = NSColor(primary).usingColorSpace(.deviceRGB),
+              let end = NSColor(secondary).usingColorSpace(.deviceRGB)
+        else {
+            return fraction < 0.5 ? primary : secondary
+        }
+        return Color(nsColor: start.blended(
+            withFraction: min(max(fraction, 0), 1),
+            of: end
+        ) ?? start)
     }
 }
 
 private struct CodexQuarterRings: View {
     let progress: Double
-    let gradient: LinearGradient
+    let colors: [Color]
 
     private var clampedProgress: Double {
         min(max(progress, 0), 1)
+    }
+
+    private func ringColor(at index: Int) -> Color {
+        guard let outerColor = colors.first else { return .accentColor }
+        guard let innerColor = colors.last, colors.count > 1 else {
+            return outerColor
+        }
+        let fraction = CGFloat(index) / 3
+        guard let outer = NSColor(outerColor).usingColorSpace(.deviceRGB),
+              let inner = NSColor(innerColor).usingColorSpace(.deviceRGB)
+        else {
+            return index < 2 ? outerColor : innerColor
+        }
+        return Color(nsColor: outer.blended(
+            withFraction: fraction,
+            of: inner
+        ) ?? outer)
     }
 
     var body: some View {
@@ -397,8 +442,11 @@ private struct CodexQuarterRings: View {
                     Circle()
                         .trim(from: 0, to: ringProgress)
                         .stroke(
-                            gradient,
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                            ringColor(at: index),
+                            style: StrokeStyle(
+                                lineWidth: lineWidth,
+                                lineCap: .round
+                            )
                         )
                         .rotationEffect(.degrees(-90))
                         .padding(inset)
