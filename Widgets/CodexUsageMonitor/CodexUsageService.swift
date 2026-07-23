@@ -170,15 +170,10 @@ struct CodexUsageService {
     }
 
     private struct StatusResponse: Decodable {
-        struct Page: Decodable {
-            let updatedAt: String?
-            enum CodingKeys: String, CodingKey { case updatedAt = "updated_at" }
-        }
         struct Status: Decodable {
             let description: String?
             let indicator: String
         }
-        let page: Page?
         let status: Status
     }
 
@@ -353,7 +348,6 @@ struct CodexUsageService {
             overallIndicator: OpenAIServiceIndicator(overallIndicator: status.status.indicator),
             description: status.status.description,
             groups: groups,
-            updatedAt: status.page?.updatedAt.flatMap(parseISO8601),
             fetchedAt: Date()
         )
     }

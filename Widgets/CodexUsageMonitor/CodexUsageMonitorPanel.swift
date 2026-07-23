@@ -1034,7 +1034,7 @@ struct CodexUsageMonitorPanel: View {
                 overallStatusCard(status)
                 if let chatGPT = status.chatGPT { statusGroupCard(chatGPT, symbol: "bubble.left.and.bubble.right.fill") }
                 if let codex = status.codex { statusGroupCard(codex, symbol: "terminal.fill") }
-                statusFooter(status)
+                statusFooter
             } else if let error = monitor.statusError {
                 errorCard(error)
             } else {
@@ -1056,12 +1056,10 @@ struct CodexUsageMonitorPanel: View {
                     ? status.overallIndicator.label
                     : (status.description ?? status.overallIndicator.label))
                     .font(.system(size: 12, weight: .semibold))
-                Text(status.updatedAt.map {
-                    CodexLocalization.text(
-                        "官方状态 · \($0.codexRelativeText)更新",
-                        "Official status · updated \($0.codexRelativeText)"
-                    )
-                } ?? CodexLocalization.text("OpenAI 官方状态", "Official OpenAI status"))
+                Text(CodexLocalization.text(
+                    "官方状态 · 获取于 \(status.fetchedAt.formatted(date: .omitted, time: .shortened))",
+                    "Official status · fetched at \(status.fetchedAt.formatted(date: .omitted, time: .shortened))"
+                ))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -1122,14 +1120,8 @@ struct CodexUsageMonitorPanel: View {
         .background(CodexGlassCard(cornerRadius: 10))
     }
 
-    private func statusFooter(_ status: OpenAIStatusSnapshot) -> some View {
+    private var statusFooter: some View {
         HStack {
-            Text(CodexLocalization.text(
-                "获取于 \(status.fetchedAt.formatted(date: .omitted, time: .shortened))",
-                "Fetched at \(status.fetchedAt.formatted(date: .omitted, time: .shortened))"
-            ))
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
             Spacer()
             Button { open("https://status.openai.com") } label: {
                 Label(
