@@ -194,6 +194,34 @@ let threshold = WidgetDefaults.double(key: "warningThreshold", widgetId: id, def
 let ringStyle = WidgetDefaults.string(key: "ringStyle", widgetId: id, default: "Rounded")
 ```
 
+### Table settings
+
+For list-style configuration (custom entries the user adds and removes), declare a `.table` setting. The app renders it with column headers, an add-row button, and a delete button per row:
+
+```swift
+.table(
+    key: "customEngines",
+    label: "Custom Search Engines",
+    description: "Use {searchTerms} in the URL to insert the query.",
+    columns: [
+        WidgetTableColumn(key: "type", title: "Type", kind: .picker(options: ["Query", "Static"])),
+        WidgetTableColumn(key: "prefix", title: "Prefix", kind: .text(placeholder: "yt")),
+        WidgetTableColumn(key: "url", title: "URL", kind: .text(placeholder: "https://…"), width: .expanding),
+    ]
+)
+```
+
+Read the saved rows at runtime — each row is a `[columnKey: value]` dictionary:
+
+```swift
+for row in WidgetDefaults.tableRows(key: "customEngines", widgetId: id) {
+    let prefix = row["prefix"] ?? ""
+    let url = row["url"] ?? ""
+}
+```
+
+Table settings require a DockDoor Pro version that ships SDK table support. On older app versions the settings view cannot interpret a `.table` entry, so only declare one when you actually need it.
+
 ## 6. Panel (optional)
 
 Long-press, right-click, or hover-activate can show a panel. Return a view from `makePanelBody` and the host takes care of the rest. Return `nil` (the default) if you don't need one.
@@ -213,6 +241,30 @@ func makePanelBody(dismiss: @escaping () -> Void) -> AnyView? {
 ```
 
 Call `dismiss` to close the panel. The host handles positioning and chrome.
+
+## 7. Scroll input (optional)
+
+Conform your plugin to `WidgetScrollHandling` (in addition to `DockDoorWidgetProvider`) to receive scroll events while the pointer is over your widget:
+
+```swift
+final class MyPlugin: WidgetPlugin, DockDoorWidgetProvider, WidgetScrollHandling {
+    func handleScroll(delta: CGFloat, isTrackpad: Bool) -> Bool {
+        cycleSelection(forward: delta > 0)
+        return true // consume; return false to let the dock handle it
+    }
+
+    func scrollSessionEnded() {
+        commitSelection() // optional — default does nothing
+    }
+}
+```
+
+Rules, matching the built-in Now Playing volume scroll:
+
+- Your handler is only active while your widget is the **only widget in its stack**. Multi-widget stacks use scroll to page between widgets.
+- Return `false` to fall through to the dock's own scroll gesture (file tray open/close). Consume only what you use.
+- Momentum-phase trackpad events are filtered out by the host.
+- `scrollSessionEnded()` fires when the pointer leaves your widget — commit any in-progress state there.
 
 ## What you can't do
 

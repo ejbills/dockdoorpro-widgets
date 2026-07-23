@@ -34,4 +34,18 @@ public enum WidgetDefaults {
         }
         return defaultValue
     }
+
+    /// Rows saved from a ``WidgetSetting/table(key:label:description:columns:defaultRows:)``
+    /// setting. Each row maps column keys to the user's entered values. The host
+    /// stores rows as a JSON string under the same namespaced key.
+    public static func tableRows(key: String, widgetId: String, default defaultValue: [[String: String]] = []) -> [[String: String]] {
+        let k = fullKey(key, widgetId: widgetId)
+        guard let raw = UserDefaults.standard.string(forKey: k),
+              let data = raw.data(using: .utf8),
+              let rows = try? JSONDecoder().decode([[String: String]].self, from: data)
+        else {
+            return defaultValue
+        }
+        return rows
+    }
 }
