@@ -1,0 +1,17 @@
+{
+  "id": "pomodoro-timer",
+  "name": "Pomodoro Timer",
+  "author": "skykeyjoker",
+  "description": "A polished focus timer with break cycles, daily goals, and persistent progress.",
+  "iconSymbol": "timer",
+  "orientations": ["horizontal", "vertical"],
+  "maxSlotSpan": 3,
+  "principalClass": "PomodoroTimerPlugin",
+  "sources": [
+    "PomodoroTimerPlugin.swift",
+    "PomodoroTimerModel.swift",
+    "PomodoroTheme.swift",
+    "PomodoroDockView.swift",
+    "PomodoroPanelView.swift"
+  ]
+}
