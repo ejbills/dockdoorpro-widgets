@@ -1,0 +1,21 @@
+{
+    "id": "codex-usage-monitor",
+    "name": "Codex Usage",
+    "author": "skykeyjoker",
+    "description": "Monitor Codex quota, recent token usage, recent tasks, and OpenAI service status.",
+    "iconSymbol": "terminal.fill",
+    "orientations": ["horizontal", "vertical"],
+    "maxSlotSpan": 3,
+    "principalClass": "CodexUsageMonitorPlugin",
+    "sources": [
+        "CodexUsageMonitorPlugin.swift",
+        "CodexUsageModels.swift",
+        "CodexPricingEngine.swift",
+        "CodexLocalUsageScanner.swift",
+        "CodexConversationScanner.swift",
+        "CodexUsageService.swift",
+        "CodexUsageMonitor.swift",
+        "CodexUsageMonitorView.swift",
+        "CodexUsageMonitorPanel.swift"
+    ]
+}
