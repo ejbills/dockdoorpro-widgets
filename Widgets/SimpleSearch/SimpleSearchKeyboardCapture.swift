@@ -6,19 +6,37 @@ final class SimpleSearchKeyboardCapture: NSObject, NSTextFieldDelegate {
     private var onChange: ((String) -> Void)?
     private var onSubmit: (() -> Void)?
     private var onCancel: (() -> Void)?
+    private var chipRemoveCheck: ((String) -> Bool)?
+    private var onChipRemove: ((String) -> Void)?
+    private var onEmptyBackspace: (() -> Bool)?
+    private var tabPrefixCheck: ((String) -> Bool)?
+    private var onTabWhenEmpty: (() -> String?)?
+    private var onArrow: ((Int) -> Bool)?
     private var focusTask: Task<Void, Never>?
 
     func start(
         initialText: String,
         onChange: @escaping (String) -> Void,
         onSubmit: @escaping () -> Void,
-        onCancel: @escaping () -> Void
+        onCancel: @escaping () -> Void,
+        chipRemoveCheck: ((String) -> Bool)? = nil,
+        onChipRemove: ((String) -> Void)? = nil,
+        onEmptyBackspace: (() -> Bool)? = nil,
+        tabPrefixCheck: ((String) -> Bool)? = nil,
+        onTabWhenEmpty: (() -> String?)? = nil,
+        onArrow: ((Int) -> Bool)? = nil
     ) {
         stop()
 
         self.onChange = onChange
         self.onSubmit = onSubmit
         self.onCancel = onCancel
+        self.chipRemoveCheck = chipRemoveCheck
+        self.onChipRemove = onChipRemove
+        self.onEmptyBackspace = onEmptyBackspace
+        self.tabPrefixCheck = tabPrefixCheck
+        self.onTabWhenEmpty = onTabWhenEmpty
+        self.onArrow = onArrow
 
         focusTask?.cancel()
 
@@ -81,6 +99,12 @@ final class SimpleSearchKeyboardCapture: NSObject, NSTextFieldDelegate {
         onChange = nil
         onSubmit = nil
         onCancel = nil
+        chipRemoveCheck = nil
+        onChipRemove = nil
+        onEmptyBackspace = nil
+        tabPrefixCheck = nil
+        onTabWhenEmpty = nil
+        onArrow = nil
     }
 
     private func focus() {
@@ -104,6 +128,50 @@ final class SimpleSearchKeyboardCapture: NSObject, NSTextFieldDelegate {
         if selector == #selector(NSResponder.cancelOperation(_:)) {
             onCancel?()
             return true
+        }
+
+        // Flèches ↑/↓ sur champ vide : cycle de moteur (comme le scroll inline).
+        if selector == #selector(NSResponder.moveUp(_:)),
+           (control as? NSTextField)?.stringValue.isEmpty == true, onArrow?(-1) == true {
+            return true
+        }
+        if selector == #selector(NSResponder.moveDown(_:)),
+           (control as? NSTextField)?.stringValue.isEmpty == true, onArrow?(1) == true {
+            return true
+        }
+
+        if selector == #selector(NSResponder.insertTab(_:)),
+           let field = control as? NSTextField {
+            // Champ vide + suggestion presse-papier : Tab la remplit.
+            if field.stringValue.isEmpty, let suggestion = onTabWhenEmpty?() {
+                field.stringValue = suggestion
+                onChange?(suggestion)
+                return true
+            }
+            let candidate = field.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+            if !candidate.isEmpty, !candidate.contains(" "), tabPrefixCheck?(candidate) == true {
+                field.stringValue = candidate + " "
+                onChange?(candidate + " ")
+                return true
+            }
+        }
+
+        if selector == #selector(NSResponder.deleteBackward(_:)),
+           let field = control as? NSTextField {
+            let value = field.stringValue
+
+            if value.isEmpty, let handler = onEmptyBackspace, handler() {
+                return true
+            }
+
+            let withoutLast = String(value.dropLast())
+            if value.hasSuffix(" "), !withoutLast.isEmpty, !withoutLast.contains(" "),
+               chipRemoveCheck?(withoutLast) == true {
+                field.stringValue = withoutLast + " "
+                onChipRemove?(withoutLast)
+                onChange?(withoutLast + " ")
+                return true
+            }
         }
 
         return false

@@ -3,6 +3,7 @@ import SwiftUI
 struct VerticalTextWithCursor: View {
     let text: String
     let showCursor: Bool
+    var cursorColor: Color = .primary
 
     @State private var cursorOn = true
     @ScaledMetric(relativeTo: .body) private var characterLineHeight: CGFloat = 18
@@ -50,7 +51,7 @@ struct VerticalTextWithCursor: View {
 
     private var cursor: some View {
         Rectangle()
-            .fill(.primary)
+            .fill(cursorColor)
             .frame(width: cursorWidth, height: cursorHeight)
             .opacity(cursorOn ? 1 : 0)
             .onAppear {

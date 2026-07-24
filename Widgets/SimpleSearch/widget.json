@@ -5,6 +5,8 @@
     "description": "Type a search or URL and open it in your browser.",
     "iconSymbol": "magnifyingglass",
     "orientations": ["horizontal", "vertical"],
+    "maxSlotSpan": 3,
+    "requiresFeatureLevel": 2,
     "principalClass": "SimpleSearchPlugin",
     "sources": [
         "SimpleSearchPlugin.swift",

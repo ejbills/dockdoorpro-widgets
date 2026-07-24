@@ -33,7 +33,11 @@ struct InvisibleSearchCaptureView: View {
             await focusField()
         }
         .onDisappear {
-            if !model.isErasing {
+            // Pendant le scroll, l'hôte démonte/remonte brièvement cette capture
+            // alors que le pointeur est toujours sur le widget : ne pas reset dans
+            // ce cas (sinon isActive tombe et le chip disparaît en plein scroll).
+            // La sortie réelle est gérée par la fermeture auto de la vue inline.
+            if !model.isErasing && !model.isHovering {
                 model.reset()
             }
         }
@@ -52,7 +56,11 @@ struct InvisibleSearchCaptureView: View {
     }
 
     private func submit() {
-        if let url = searchURL(for: query, widgetId: "simple-search") {
+        let effectiveQuery = model.scrolledPrefix != nil && !query.isEmpty
+            ? "\(model.scrolledPrefix!) \(query)"
+            : query
+        model.recordLastUsedEngine(model.scrolledPrefix)
+        if let url = searchURL(for: effectiveQuery, widgetId: "simple-search", skipShortcuts: model.prefixJustRemoved) {
             openURL(url)
         }
 
