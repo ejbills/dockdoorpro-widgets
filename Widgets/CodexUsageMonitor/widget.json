@@ -12,10 +12,15 @@
         "CodexUsageModels.swift",
         "CodexPricingEngine.swift",
         "CodexLocalUsageScanner.swift",
+        "CodexOAuthCredentialBroker.swift",
+        "CodexAccountInsightsService.swift",
         "CodexConversationScanner.swift",
         "CodexUsageService.swift",
+        "CodexQuotaPace.swift",
         "CodexUsageMonitor.swift",
         "CodexUsageMonitorView.swift",
+        "CodexOfficialActivityView.swift",
+        "CodexLocalInsightsView.swift",
         "CodexUsageMonitorPanel.swift"
     ]
 }

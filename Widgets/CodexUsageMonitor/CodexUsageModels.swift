@@ -267,20 +267,230 @@ struct CodexQuotaWindow: Codable, Equatable, Identifiable {
     }
 }
 
-struct CodexTokenUsageDay: Codable, Equatable, Identifiable {
+struct CodexTokenUsageDay: Codable, Equatable, Identifiable, Sendable {
     let dayKey: String
     let inputTokens: Int
     let cachedInputTokens: Int
     let cacheWriteInputTokens: Int
     let outputTokens: Int
+    let reasoningOutputTokens: Int
     let priorityTokens: Int
+    let requestCount: Int
+    let turnCount: Int
     let estimatedCostUSD: Double?
 
     var id: String { dayKey }
     var totalTokens: Int { inputTokens + outputTokens }
+    var standardTokens: Int { max(0, totalTokens - priorityTokens) }
+    var uncachedInputTokens: Int {
+        max(0, inputTokens - cachedInputTokens - cacheWriteInputTokens)
+    }
+    var visibleOutputTokens: Int { max(0, outputTokens - reasoningOutputTokens) }
+    var cacheHitPercent: Double? {
+        guard inputTokens > 0 else { return nil }
+        return min(100, max(0, Double(cachedInputTokens) / Double(inputTokens) * 100))
+    }
+
+    init(
+        dayKey: String,
+        inputTokens: Int,
+        cachedInputTokens: Int,
+        cacheWriteInputTokens: Int,
+        outputTokens: Int,
+        reasoningOutputTokens: Int = 0,
+        priorityTokens: Int,
+        requestCount: Int = 0,
+        turnCount: Int = 0,
+        estimatedCostUSD: Double?
+    ) {
+        self.dayKey = dayKey
+        self.inputTokens = inputTokens
+        self.cachedInputTokens = cachedInputTokens
+        self.cacheWriteInputTokens = cacheWriteInputTokens
+        self.outputTokens = outputTokens
+        self.reasoningOutputTokens = reasoningOutputTokens
+        self.priorityTokens = priorityTokens
+        self.requestCount = requestCount
+        self.turnCount = turnCount
+        self.estimatedCostUSD = estimatedCostUSD
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case dayKey
+        case inputTokens
+        case cachedInputTokens
+        case cacheWriteInputTokens
+        case outputTokens
+        case reasoningOutputTokens
+        case priorityTokens
+        case requestCount
+        case turnCount
+        case estimatedCostUSD
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        dayKey = try container.decode(String.self, forKey: .dayKey)
+        inputTokens = try container.decode(Int.self, forKey: .inputTokens)
+        cachedInputTokens = try container.decode(Int.self, forKey: .cachedInputTokens)
+        cacheWriteInputTokens = try container.decode(Int.self, forKey: .cacheWriteInputTokens)
+        outputTokens = try container.decode(Int.self, forKey: .outputTokens)
+        reasoningOutputTokens = try container.decodeIfPresent(
+            Int.self,
+            forKey: .reasoningOutputTokens
+        ) ?? 0
+        priorityTokens = try container.decode(Int.self, forKey: .priorityTokens)
+        requestCount = try container.decodeIfPresent(Int.self, forKey: .requestCount) ?? 0
+        turnCount = try container.decodeIfPresent(Int.self, forKey: .turnCount) ?? 0
+        estimatedCostUSD = try container.decodeIfPresent(
+            Double.self,
+            forKey: .estimatedCostUSD
+        )
+    }
 }
 
-struct CodexRecentUsageSnapshot: Codable, Equatable {
+struct CodexUsagePeriodSummary: Codable, Equatable, Sendable {
+    let dayCount: Int
+    let inputTokens: Int
+    let cachedInputTokens: Int
+    let cacheWriteInputTokens: Int
+    let outputTokens: Int
+    let reasoningOutputTokens: Int
+    let priorityTokens: Int
+    let estimatedCostUSD: Double?
+    let requestCount: Int
+    let turnCount: Int
+    let activeDays: Int
+    let peakDayKey: String?
+    let peakDayTokens: Int
+
+    var totalTokens: Int { inputTokens + outputTokens }
+    var standardTokens: Int { max(0, totalTokens - priorityTokens) }
+    var uncachedInputTokens: Int {
+        max(0, inputTokens - cachedInputTokens - cacheWriteInputTokens)
+    }
+    var visibleOutputTokens: Int { max(0, outputTokens - reasoningOutputTokens) }
+    var cacheHitPercent: Double? {
+        guard inputTokens > 0 else { return nil }
+        return min(100, max(0, Double(cachedInputTokens) / Double(inputTokens) * 100))
+    }
+
+    static let empty = CodexUsagePeriodSummary(
+        dayCount: 0,
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        cacheWriteInputTokens: 0,
+        outputTokens: 0,
+        reasoningOutputTokens: 0,
+        priorityTokens: 0,
+        estimatedCostUSD: nil,
+        requestCount: 0,
+        turnCount: 0,
+        activeDays: 0,
+        peakDayKey: nil,
+        peakDayTokens: 0
+    )
+}
+
+struct CodexUsageComparison: Codable, Equatable, Sendable {
+    let previousDayTokens: Int
+    let dayOverDayChangePercent: Double?
+    let previous7DaysTokens: Int
+    let sevenDayChangePercent: Double?
+
+    static let empty = CodexUsageComparison(
+        previousDayTokens: 0,
+        dayOverDayChangePercent: nil,
+        previous7DaysTokens: 0,
+        sevenDayChangePercent: nil
+    )
+}
+
+struct CodexModelUsageSummary: Codable, Equatable, Identifiable, Sendable {
+    let model: String
+    let tokens: Int
+    let estimatedCostUSD: Double?
+    let requestCount: Int
+    let turnCount: Int
+    let standardTokens: Int
+    let priorityTokens: Int
+    let standardRequestCount: Int
+    let priorityRequestCount: Int
+
+    var id: String { model }
+}
+
+struct CodexProjectUsageSummary: Codable, Equatable, Identifiable, Sendable {
+    let projectName: String
+    /// Kept for local open/tooltip actions. It is never derived from prompt content.
+    let projectPath: String
+    let tokens: Int
+    let estimatedCostUSD: Double?
+    let requestCount: Int
+    let turnCount: Int
+    let sessionCount: Int
+    let lastActiveAt: Date
+
+    var id: String { projectPath }
+}
+
+struct CodexSessionUsageSummary: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let projectName: String
+    /// Kept for local open/tooltip actions. Only the final component is shown by default.
+    let projectPath: String
+    let dominantModel: String?
+    let tokens: Int
+    let estimatedCostUSD: Double?
+    let requestCount: Int
+    let turnCount: Int
+    let completedTurnCount: Int
+    let abortedTurnCount: Int
+    let startedAt: Date
+    let lastActiveAt: Date
+    let averageTurnDurationSeconds: Double?
+    let averageTimeToFirstTokenMilliseconds: Double?
+    let compactionCount: Int
+    let isActive: Bool
+}
+
+struct CodexContextHealthSnapshot: Codable, Equatable, Identifiable, Sendable {
+    let sessionID: String
+    let parentSessionID: String?
+    let projectName: String
+    /// Kept for local open/tooltip actions and never populated from message content.
+    let projectPath: String
+    let model: String?
+    let capturedAt: Date
+    let contextWindowTokens: Int
+    let usedContextTokens: Int
+    let inputTokens: Int
+    let cachedInputTokens: Int
+    let cacheWriteInputTokens: Int
+    let outputTokens: Int
+    let reasoningOutputTokens: Int
+    let compactionCount: Int
+    let isSubagent: Bool
+    let isActive: Bool
+
+    var id: String { sessionID }
+    var remainingContextTokens: Int {
+        max(0, contextWindowTokens - usedContextTokens)
+    }
+    var usedPercent: Double {
+        guard contextWindowTokens > 0 else { return 0 }
+        return min(
+            100,
+            max(0, Double(usedContextTokens) / Double(contextWindowTokens) * 100)
+        )
+    }
+    var cacheHitPercent: Double? {
+        guard inputTokens > 0 else { return nil }
+        return min(100, max(0, Double(cachedInputTokens) / Double(inputTokens) * 100))
+    }
+}
+
+struct CodexRecentUsageSnapshot: Codable, Equatable, Sendable {
     let todayTokens: Int
     let todayEstimatedCostUSD: Double?
     let last30DaysTokens: Int
@@ -289,9 +499,118 @@ struct CodexRecentUsageSnapshot: Codable, Equatable {
     let mostUsedModel: String?
     let pricingSource: String?
     let updatedAt: Date
+    let last7DaysSummary: CodexUsagePeriodSummary
+    let last30DaysSummary: CodexUsagePeriodSummary
+    let comparison: CodexUsageComparison
+    let topModels: [CodexModelUsageSummary]
+    let topProjects: [CodexProjectUsageSummary]
+    let recentSessions: [CodexSessionUsageSummary]
+    let recentContextHealth: [CodexContextHealthSnapshot]
 
     var chartDays: [CodexTokenUsageDay] {
         Array(daily.suffix(8))
+    }
+
+    var latestContextHealth: CodexContextHealthSnapshot? {
+        recentContextHealth.first
+    }
+
+    init(
+        todayTokens: Int,
+        todayEstimatedCostUSD: Double?,
+        last30DaysTokens: Int,
+        last30DaysEstimatedCostUSD: Double?,
+        daily: [CodexTokenUsageDay],
+        mostUsedModel: String?,
+        pricingSource: String?,
+        updatedAt: Date,
+        last7DaysSummary: CodexUsagePeriodSummary = .empty,
+        last30DaysSummary: CodexUsagePeriodSummary = .empty,
+        comparison: CodexUsageComparison = .empty,
+        topModels: [CodexModelUsageSummary] = [],
+        topProjects: [CodexProjectUsageSummary] = [],
+        recentSessions: [CodexSessionUsageSummary] = [],
+        recentContextHealth: [CodexContextHealthSnapshot] = []
+    ) {
+        self.todayTokens = todayTokens
+        self.todayEstimatedCostUSD = todayEstimatedCostUSD
+        self.last30DaysTokens = last30DaysTokens
+        self.last30DaysEstimatedCostUSD = last30DaysEstimatedCostUSD
+        self.daily = daily
+        self.mostUsedModel = mostUsedModel
+        self.pricingSource = pricingSource
+        self.updatedAt = updatedAt
+        self.last7DaysSummary = last7DaysSummary
+        self.last30DaysSummary = last30DaysSummary
+        self.comparison = comparison
+        self.topModels = topModels
+        self.topProjects = topProjects
+        self.recentSessions = recentSessions
+        self.recentContextHealth = recentContextHealth
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case todayTokens
+        case todayEstimatedCostUSD
+        case last30DaysTokens
+        case last30DaysEstimatedCostUSD
+        case daily
+        case mostUsedModel
+        case pricingSource
+        case updatedAt
+        case last7DaysSummary
+        case last30DaysSummary
+        case comparison
+        case topModels
+        case topProjects
+        case recentSessions
+        case recentContextHealth
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        todayTokens = try container.decode(Int.self, forKey: .todayTokens)
+        todayEstimatedCostUSD = try container.decodeIfPresent(
+            Double.self,
+            forKey: .todayEstimatedCostUSD
+        )
+        last30DaysTokens = try container.decode(Int.self, forKey: .last30DaysTokens)
+        last30DaysEstimatedCostUSD = try container.decodeIfPresent(
+            Double.self,
+            forKey: .last30DaysEstimatedCostUSD
+        )
+        daily = try container.decode([CodexTokenUsageDay].self, forKey: .daily)
+        mostUsedModel = try container.decodeIfPresent(String.self, forKey: .mostUsedModel)
+        pricingSource = try container.decodeIfPresent(String.self, forKey: .pricingSource)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        last7DaysSummary = try container.decodeIfPresent(
+            CodexUsagePeriodSummary.self,
+            forKey: .last7DaysSummary
+        ) ?? .empty
+        last30DaysSummary = try container.decodeIfPresent(
+            CodexUsagePeriodSummary.self,
+            forKey: .last30DaysSummary
+        ) ?? .empty
+        comparison = try container.decodeIfPresent(
+            CodexUsageComparison.self,
+            forKey: .comparison
+        ) ?? .empty
+        topModels = try container.decodeIfPresent(
+            [CodexModelUsageSummary].self,
+            forKey: .topModels
+        ) ?? []
+        topProjects = try container.decodeIfPresent(
+            [CodexProjectUsageSummary].self,
+            forKey: .topProjects
+        ) ?? []
+        recentSessions = try container.decodeIfPresent(
+            [CodexSessionUsageSummary].self,
+            forKey: .recentSessions
+        ) ?? []
+        recentContextHealth = try container.decodeIfPresent(
+            [CodexContextHealthSnapshot].self,
+            forKey: .recentContextHealth
+        ) ?? []
     }
 }
 

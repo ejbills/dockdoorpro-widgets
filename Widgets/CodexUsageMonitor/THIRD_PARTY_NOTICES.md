@@ -4,4 +4,6 @@ The OAuth usage field mapping and token refresh flow, local token-log aggregatio
 
 The complete license text is included in `CODEXBAR_LICENSE.txt`.
 
+The official account activity endpoint and response-field mapping follow the open-source [OpenAI Codex](https://github.com/openai/codex) app-server and backend client, licensed under the Apache License 2.0.
+
 The widget is an independent local DockDoor Pro integration and is not affiliated with CodexBar or OpenAI.

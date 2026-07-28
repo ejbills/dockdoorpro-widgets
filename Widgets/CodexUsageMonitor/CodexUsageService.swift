@@ -46,11 +46,10 @@ struct CodexUsageService {
 
     }
 
-    private struct Credentials {
-        let accessToken: String
-        let refreshToken: String
-        let idToken: String?
-        let accountId: String?
+    private let credentialBroker: CodexOAuthCredentialBroker
+
+    init(credentialBroker: CodexOAuthCredentialBroker = .shared) {
+        self.credentialBroker = credentialBroker
     }
 
     private struct UsageResponse: Decodable {
@@ -231,12 +230,14 @@ struct CodexUsageService {
     }
 
     private func fetchOAuthUsage() async throws -> CodexUsageSnapshot {
-        var credentials = try loadCredentials()
+        var credentials = try await credentialBroker.credentials()
         let response: UsageResponse
         do {
             response = try await requestUsage(credentials)
         } catch ServiceError.loginExpired where !credentials.refreshToken.isEmpty {
-            credentials = try await refresh(credentials)
+            credentials = try await credentialBroker.refreshedCredentials(
+                rejecting: credentials.accessToken
+            )
             response = try await requestUsage(credentials)
         }
 
@@ -352,7 +353,7 @@ struct CodexUsageService {
         )
     }
 
-    private func requestUsage(_ credentials: Credentials) async throws -> UsageResponse {
+    private func requestUsage(_ credentials: CodexOAuthCredentials) async throws -> UsageResponse {
         let accountId = credentials.accountId ?? identity(from: credentials.idToken).accountId
         var request = URLRequest(
             url: URL(string: "https://chatgpt.com/backend-api/wham/usage")!,
@@ -434,77 +435,6 @@ struct CodexUsageService {
             usedPercent: max(0, min(100, window.usedPercent)),
             resetAt: window.resetAt > 0 ? Date(timeIntervalSince1970: TimeInterval(window.resetAt)) : nil,
             durationSeconds: window.limitWindowSeconds
-        )
-    }
-
-    private func authFileURL() -> URL {
-        let env = ProcessInfo.processInfo.environment
-        if let configured = env["CODEX_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !configured.isEmpty
-        {
-            return URL(fileURLWithPath: configured).appendingPathComponent("auth.json")
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex/auth.json")
-    }
-
-    private func loadCredentials() throws -> Credentials {
-        let url = authFileURL()
-        guard FileManager.default.fileExists(atPath: url.path) else { throw ServiceError.authMissing }
-        let data = try Data(contentsOf: url)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ServiceError.authInvalid
-        }
-        guard let tokens = json["tokens"] as? [String: Any] else {
-            throw ServiceError.authTokensMissing
-        }
-        guard let access = (tokens["access_token"] ?? tokens["accessToken"]) as? String,
-              !access.isEmpty
-        else { throw ServiceError.authTokensMissing }
-
-        let refresh = (tokens["refresh_token"] ?? tokens["refreshToken"]) as? String ?? ""
-        let idToken = (tokens["id_token"] ?? tokens["idToken"]) as? String
-        let accountId = (tokens["account_id"] ?? tokens["accountId"]) as? String
-        return Credentials(
-            accessToken: access,
-            refreshToken: refresh,
-            idToken: idToken,
-            accountId: accountId
-        )
-    }
-
-    private func refresh(_ credentials: Credentials) async throws -> Credentials {
-        guard !credentials.refreshToken.isEmpty else { throw ServiceError.loginExpired }
-        var request = URLRequest(
-            url: URL(string: "https://auth.openai.com/oauth/token")!,
-            cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: 30
-        )
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "client_id": "app_EMoamEEZ73f0CkXaXp7hrann",
-            "grant_type": "refresh_token",
-            "refresh_token": credentials.refreshToken,
-            "scope": "openid profile email",
-        ])
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw ServiceError.invalidResponse }
-        switch http.statusCode {
-        case 200...299: break
-        case 400, 401, 403: throw ServiceError.loginExpired
-        default: throw ServiceError.server(http.statusCode)
-        }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              json["access_token"] is String
-        else { throw ServiceError.invalidResponse }
-
-        return Credentials(
-            accessToken: json["access_token"] as? String ?? credentials.accessToken,
-            refreshToken: json["refresh_token"] as? String ?? credentials.refreshToken,
-            idToken: json["id_token"] as? String ?? credentials.idToken,
-            accountId: credentials.accountId
         )
     }
 

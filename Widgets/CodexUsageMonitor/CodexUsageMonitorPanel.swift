@@ -10,7 +10,8 @@ struct CodexUsageMonitorPanel: View {
     #if CODEX_USAGE_TESTING
     @State private var page: CodexPanelPage = {
         switch UserDefaults.standard.string(forKey: "codexUsage.testing.page") {
-        case "conversations": return .conversations
+        case "insights": return .insights
+        case "conversations", "work": return .work
         case "status": return .status
         case "settings": return .settings
         default: return .overview
@@ -27,6 +28,9 @@ struct CodexUsageMonitorPanel: View {
     @State private var refreshInterval = CodexRefreshInterval.fiveMinutes
     @State private var showStatus = true
     @State private var showExtraModelQuotas = true
+    @State private var insightsSection = CodexInsightsSection.official
+    @State private var workSection = CodexWorkSection.projects
+    @State private var selectedProjectPath: String?
     @State private var hoveredUsageDayID: String?
     @State private var hoveredUsageLocation: CGPoint?
     @State private var usageTooltipSize = CGSize(width: 126, height: 80)
@@ -34,7 +38,8 @@ struct CodexUsageMonitorPanel: View {
     @State private var hoveredHeaderPage: CodexPanelPage? = {
         switch UserDefaults.standard.string(forKey: "codexUsage.testing.hoveredHeaderPage") {
         case "overview": return .overview
-        case "conversations": return .conversations
+        case "insights": return .insights
+        case "conversations", "work": return .work
         case "status": return .status
         case "settings": return .settings
         default: return nil
@@ -52,12 +57,7 @@ struct CodexUsageMonitorPanel: View {
     private let panelWidth: CGFloat = 360
     private let panelContentWidth: CGFloat = 332
     private var theme: CodexThemeColors { colorTheme.colors(for: appearance) }
-    private var panelHeight: CGFloat {
-        switch page {
-        case .conversations, .status: return 520
-        case .overview, .settings: return 490
-        }
-    }
+    private let panelHeight: CGFloat = 520
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -69,7 +69,8 @@ struct CodexUsageMonitorPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     switch page {
                     case .overview: overviewPage
-                    case .conversations: conversationsPage
+                    case .insights: insightsPage
+                    case .work: workPage
                     case .status: statusPage
                     case .settings: settingsPage
                     }
@@ -85,6 +86,7 @@ struct CodexUsageMonitorPanel: View {
             .scrollIndicators(.hidden)
         }
         .frame(width: panelWidth, alignment: .leading)
+        .environment(\.codexCardTheme, theme)
         .background(panelBackground)
         .overlay(panelBorder)
         .shadow(color: theme.primary.opacity(0.16), radius: 22, x: -5)
@@ -110,7 +112,7 @@ struct CodexUsageMonitorPanel: View {
             loadSettings()
         }
         .task(id: page) {
-            guard page == .conversations else { return }
+            guard page == .work else { return }
             monitor.refreshConversations()
             while !Task.isCancelled {
                 do {
@@ -133,12 +135,15 @@ struct CodexUsageMonitorPanel: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(headerTitle)
                     .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
                 Text(headerSubtitle)
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
+            .frame(maxWidth: 116, alignment: .leading)
 
-            Spacer()
+            Spacer(minLength: 3)
 
             if monitor.isRefreshing || monitor.isRefreshingConversations {
                 ProgressView().controlSize(.mini)
@@ -149,14 +154,19 @@ struct CodexUsageMonitorPanel: View {
             }
 
             headerButton(
-                symbol: "chart.pie.fill",
+                symbol: "gauge.with.dots.needle.67percent",
                 target: .overview,
-                help: CodexLocalization.text("额度与 Token 使用", "Quota and Token usage")
+                help: CodexLocalization.text("额度总览与消耗节奏", "Quota overview and pace")
+            )
+            headerButton(
+                symbol: "chart.xyaxis.line",
+                target: .insights,
+                help: CodexLocalization.text("官方活动与本地用量洞察", "Official activity and local insights")
             )
             headerButton(
                 symbol: "bubble.left.and.text.bubble.right.fill",
-                target: .conversations,
-                help: CodexLocalization.text("最近 Codex 对话与任务", "Recent Codex conversations and tasks")
+                target: .work,
+                help: CodexLocalization.text("项目、对话与任务效率", "Projects, conversations, and task efficiency")
             )
             headerButton(
                 symbol: "waveform.path.ecg",
@@ -238,7 +248,8 @@ struct CodexUsageMonitorPanel: View {
     private var headerSymbol: String {
         switch page {
         case .overview: return "terminal.fill"
-        case .conversations: return "bubble.left.and.text.bubble.right.fill"
+        case .insights: return "chart.xyaxis.line"
+        case .work: return "bubble.left.and.text.bubble.right.fill"
         case .status: return "waveform.path.ecg"
         case .settings: return "gearshape.fill"
         }
@@ -247,7 +258,8 @@ struct CodexUsageMonitorPanel: View {
     private var headerTitle: String {
         switch page {
         case .overview: return "Codex"
-        case .conversations: return CodexLocalization.text("最近对话", "Recent Conversations")
+        case .insights: return CodexLocalization.text("用量洞察", "Usage Insights")
+        case .work: return CodexLocalization.text("项目与任务", "Projects & Tasks")
         case .status: return CodexLocalization.text("OpenAI 状态", "OpenAI Status")
         case .settings: return CodexLocalization.text("Codex 设置", "Codex Settings")
         }
@@ -257,7 +269,9 @@ struct CodexUsageMonitorPanel: View {
         switch page {
         case .overview:
             return monitor.usage?.accountEmail ?? CodexLocalization.text("额度监控", "Quota monitor")
-        case .conversations:
+        case .insights:
+            return CodexLocalization.text("官方活动 · 本地估算", "Official activity · local estimates")
+        case .work:
             if let snapshot = monitor.recentConversations {
                 return CodexLocalization.text(
                     "\(snapshot.conversations.count) 条本地记录",
@@ -306,6 +320,64 @@ struct CodexUsageMonitorPanel: View {
                 loadingCard
             }
         }
+    }
+
+    @ViewBuilder
+    private var insightsPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            insightsSectionPicker
+            switch insightsSection {
+            case .official:
+                CodexOfficialActivityView(
+                    snapshot: monitor.accountInsights,
+                    primary: theme.primary,
+                    secondary: theme.secondary
+                )
+            case .local:
+                if let snapshot = monitor.recentUsage {
+                    CodexLocalInsightsView(
+                        snapshot: snapshot,
+                        primary: theme.primary,
+                        secondary: theme.secondary
+                    )
+                } else if let error = monitor.tokenUsageError {
+                    errorCard(error)
+                } else {
+                    recentTokenUsageLoadingCard
+                }
+            }
+        }
+    }
+
+    private var insightsSectionPicker: some View {
+        HStack(spacing: 5) {
+            ForEach(CodexInsightsSection.allCases) { section in
+                Button {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                        insightsSection = section
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: section.symbol)
+                        Text(section.title)
+                    }
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 34)
+                    .contentShape(Rectangle())
+                    .foregroundStyle(insightsSection == section ? theme.primary : .secondary)
+                    .background(
+                        theme.primary.opacity(insightsSection == section ? 0.13 : 0),
+                        in: RoundedRectangle(cornerRadius: 7)
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .contentShape(Rectangle())
+                .help(section.title)
+            }
+        }
+        .padding(3)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
     }
 
     private func accountRow(_ usage: CodexUsageSnapshot) -> some View {
@@ -388,6 +460,8 @@ struct CodexUsageMonitorPanel: View {
             }
             .font(.system(size: 9, weight: .medium))
             .foregroundStyle(.secondary)
+
+            quotaPaceLine(window)
         }
         .padding(14)
         .background(
@@ -396,7 +470,9 @@ struct CodexUsageMonitorPanel: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(
                         LinearGradient(
-                            colors: [theme.primary.opacity(0.12), theme.secondary.opacity(0.06)],
+                            colors: appearance == .dark
+                                ? [theme.primary.opacity(0.060), theme.secondary.opacity(0.032)]
+                                : [theme.primary.opacity(0.090), theme.secondary.opacity(0.045)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -455,9 +531,86 @@ struct CodexUsageMonitorPanel: View {
             Text(window.resetDescription())
                 .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(.secondary)
+            quotaPaceLine(window)
         }
         .padding(11)
         .background(CodexGlassCard())
+    }
+
+    @ViewBuilder
+    private func quotaPaceLine(_ window: CodexQuotaWindow) -> some View {
+        if let pace = monitor.quotaPace?.insight(id: window.id) {
+            let rateText: String = {
+                guard let hourly = pace.percentPerHour else {
+                    return CodexLocalization.text("正在学习额度节奏", "Learning quota pace")
+                }
+                if window.durationSeconds >= 2 * 24 * 60 * 60 {
+                    return CodexLocalization.text(
+                        String(format: "约 %.1f%% / 天", hourly * 24),
+                        String(format: "~%.1f%% / day", hourly * 24)
+                    )
+                }
+                return CodexLocalization.text(
+                    String(format: "约 %.1f%% / 小时", hourly),
+                    String(format: "~%.1f%% / hour", hourly)
+                )
+            }()
+            let status: (String, Color, String) = {
+                switch pace.willLastToReset {
+                case true:
+                    return (
+                        CodexLocalization.text("节奏安全", "On track"),
+                        CodexPalette.green(for: appearance),
+                        CodexLocalization.text(
+                            "按当前速度预计可撑到本轮额度重置。",
+                            "At the current pace, this quota should last until reset."
+                        )
+                    )
+                case false:
+                    let exhaustion = pace.projectedExhaustionAt?.codexRelativeText
+                        ?? CodexLocalization.text("重置前", "before reset")
+                    let suggestion = pace.speedMultiplierToReset.map {
+                        CodexLocalization.text(
+                            String(format: " 建议将速度降至当前的 %.0f%%。", min(1, $0) * 100),
+                            String(format: " Reduce pace to about %.0f%% of the current rate.", min(1, $0) * 100)
+                        )
+                    } ?? ""
+                    return (
+                        CodexLocalization.text("可能提前耗尽", "May run out early"),
+                        CodexPalette.orange(for: appearance),
+                        CodexLocalization.text(
+                            "按近期速度预计\(exhaustion)耗尽。\(suggestion)",
+                            "Projected to run out \(exhaustion).\(suggestion)"
+                        )
+                    )
+                case nil:
+                    return (
+                        CodexLocalization.text("样本积累中", "Collecting samples"),
+                        .secondary,
+                        CodexLocalization.text(
+                            "预测会在积累更多额度采样后变得稳定。",
+                            "The forecast becomes more stable after more quota samples are collected."
+                        )
+                    )
+                }
+            }()
+
+            HStack(spacing: 5) {
+                Image(systemName: "speedometer")
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(status.1)
+                Text(rateText)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(status.0)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(status.1)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 8.5, weight: .medium))
+            .foregroundStyle(.secondary)
+            .help(status.2)
+        }
     }
 
     private func recentTokenUsageCard(_ snapshot: CodexRecentUsageSnapshot) -> some View {
@@ -606,7 +759,9 @@ struct CodexUsageMonitorPanel: View {
                 RoundedRectangle(cornerRadius: 11)
                     .fill(
                         LinearGradient(
-                            colors: [theme.primary.opacity(0.06), theme.secondary.opacity(0.035)],
+                            colors: appearance == .dark
+                                ? [theme.primary.opacity(0.060), theme.secondary.opacity(0.032)]
+                                : [theme.primary.opacity(0.090), theme.secondary.opacity(0.045)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -899,9 +1054,269 @@ struct CodexUsageMonitorPanel: View {
     }
 
     @ViewBuilder
+    private var workPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            workSectionPicker
+            switch workSection {
+            case .projects:
+                projectsPage
+            case .conversations:
+                conversationsPage
+            }
+        }
+    }
+
+    private var workSectionPicker: some View {
+        HStack(spacing: 5) {
+            ForEach(CodexWorkSection.allCases) { section in
+                Button {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                        workSection = section
+                        if section != .projects { selectedProjectPath = nil }
+                    }
+                } label: {
+                    Label(section.title, systemImage: section.symbol)
+                        .font(.system(size: 9, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .foregroundStyle(workSection == section ? theme.primary : .secondary)
+                        .background(
+                            theme.primary.opacity(workSection == section ? 0.13 : 0),
+                            in: RoundedRectangle(cornerRadius: 7)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(section.help)
+            }
+        }
+        .padding(3)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
+    }
+
+    @ViewBuilder
+    private var projectsPage: some View {
+        if let snapshot = monitor.recentUsage {
+            if let path = selectedProjectPath,
+               let project = snapshot.topProjects.first(where: { $0.projectPath == path })
+            {
+                projectDetail(project, snapshot: snapshot)
+            } else {
+                projectsOverview(snapshot)
+            }
+        } else if let error = monitor.tokenUsageError {
+            errorCard(error)
+        } else {
+            loadingCard
+        }
+    }
+
+    private func projectsOverview(_ snapshot: CodexRecentUsageSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                workMetric(
+                    CodexLocalization.text("项目", "Projects"),
+                    "\(snapshot.topProjects.count)",
+                    symbol: "folder.fill"
+                )
+                workMetric(
+                    CodexLocalization.text("活跃日", "Active days"),
+                    "\(snapshot.last30DaysSummary.activeDays)",
+                    symbol: "calendar.badge.clock"
+                )
+                workMetric(
+                    "Token",
+                    formatTokenCount(snapshot.last30DaysSummary.totalTokens),
+                    symbol: "sum"
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 7) {
+                codexSectionLabel(CodexLocalization.text("按项目统计 · 最近 30 天", "BY PROJECT · LAST 30 DAYS"))
+                if snapshot.topProjects.isEmpty {
+                    Text(CodexLocalization.text(
+                        "本地会话中暂未发现项目维度数据。",
+                        "No project-level data was found in local sessions yet."
+                    ))
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .background(CodexGlassCard())
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(snapshot.topProjects.prefix(10).enumerated()), id: \.element.id) {
+                            index,
+                            project in
+                            projectRow(project)
+                            if index < min(10, snapshot.topProjects.count) - 1 {
+                                CodexGlassDivider().padding(.leading, 40)
+                            }
+                        }
+                    }
+                    .background(CodexGlassCard(cornerRadius: 10))
+                }
+            }
+
+            dataScopeFootnote(snapshot)
+        }
+    }
+
+    private func projectRow(_ project: CodexProjectUsageSummary) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                selectedProjectPath = project.projectPath
+            }
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(theme.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(theme.secondary.opacity(0.11), in: RoundedRectangle(cornerRadius: 7))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(project.projectName)
+                        .font(.system(size: 10, weight: .semibold))
+                        .lineLimit(1)
+                    Text(CodexLocalization.text(
+                        "\(project.sessionCount) 个会话 · \(project.requestCount) 次请求 · \(project.lastActiveAt.codexRelativeText)",
+                        "\(project.sessionCount) sessions · \(project.requestCount) requests · \(project.lastActiveAt.codexRelativeText)"
+                    ))
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 5)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(formatTokenCount(project.tokens))
+                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                    if let cost = project.estimatedCostUSD {
+                        Text(formatUSD(cost))
+                            .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(CodexLocalization.text("查看项目用量详情", "View project usage details"))
+    }
+
+    private func projectDetail(
+        _ project: CodexProjectUsageSummary,
+        snapshot: CodexRecentUsageSnapshot
+    ) -> some View {
+        let sessions = snapshot.recentSessions.filter { $0.projectPath == project.projectPath }
+        let context = snapshot.recentContextHealth.first { $0.projectPath == project.projectPath }
+        return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                    selectedProjectPath = nil
+                }
+            } label: {
+                Label(CodexLocalization.text("返回项目列表", "Back to projects"), systemImage: "chevron.left")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(theme.primary)
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label(project.projectName, systemImage: "folder.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(project.projectPath)
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CodexGlassCard())
+
+            HStack(spacing: 8) {
+                workMetric("Token", formatTokenCount(project.tokens), symbol: "sum")
+                workMetric(
+                    CodexLocalization.text("费用", "Cost"),
+                    project.estimatedCostUSD.map(formatUSD) ?? "—",
+                    symbol: "dollarsign"
+                )
+                workMetric(
+                    CodexLocalization.text("会话", "Sessions"),
+                    "\(project.sessionCount)",
+                    symbol: "bubble.left.and.text.bubble.right"
+                )
+            }
+
+            if let context {
+                contextHealthCard(context)
+            }
+            if let session = sessions.first {
+                taskEfficiencyCard(session)
+            }
+
+            Button {
+                NSWorkspace.shared.open(URL(fileURLWithPath: project.projectPath))
+            } label: {
+                Label(CodexLocalization.text("在访达中打开项目", "Open project in Finder"), systemImage: "folder")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(theme.primary.opacity(0.11), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(theme.primary)
+        }
+    }
+
+    private func workMetric(
+        _ title: String,
+        _ value: String,
+        symbol: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 7.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CodexGlassCard(cornerRadius: 8))
+    }
+
+    private func dataScopeFootnote(_ snapshot: CodexRecentUsageSnapshot) -> some View {
+        Label {
+            Text(CodexLocalization.text(
+                "只读扫描 ~/.codex · \(snapshot.recentSessions.count) 个近期会话 · 更新于 \(snapshot.updatedAt.formatted(date: .omitted, time: .shortened))",
+                "Read-only ~/.codex scan · \(snapshot.recentSessions.count) recent sessions · updated \(snapshot.updatedAt.formatted(date: .omitted, time: .shortened))"
+            ))
+        } icon: {
+            Image(systemName: "lock.shield")
+        }
+        .font(.system(size: 8, weight: .medium))
+        .foregroundStyle(.tertiary)
+    }
+
+    @ViewBuilder
     private var conversationsPage: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let snapshot = monitor.recentConversations {
+                if let context = monitor.recentUsage?.latestContextHealth {
+                    contextHealthCard(context)
+                }
+                if let session = monitor.recentUsage?.recentSessions.first {
+                    taskEfficiencyCard(session)
+                }
+
                 HStack(spacing: 10) {
                     metricTile(
                         title: CodexLocalization.text("最近记录", "Recent"),
@@ -931,8 +1346,12 @@ struct CodexUsageMonitorPanel: View {
                     } else {
                         VStack(spacing: 0) {
                             ForEach(Array(snapshot.conversations.enumerated()), id: \.element.id) { index, conversation in
+                                let sessionUsage = monitor.recentUsage?.recentSessions.first {
+                                    $0.id == conversation.id
+                                }
                                 CodexConversationRow(
                                     conversation: conversation,
+                                    usage: sessionUsage,
                                     theme: theme,
                                     activeColor: CodexPalette.green(for: appearance)
                                 ) {
@@ -952,6 +1371,115 @@ struct CodexUsageMonitorPanel: View {
                 conversationLoadingCard
             }
         }
+    }
+
+    private func contextHealthCard(_ context: CodexContextHealthSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(CodexLocalization.text("上下文健康", "Context health"), systemImage: "brain.head.profile")
+                    .font(.system(size: 10.5, weight: .semibold))
+                Spacer()
+                Text("\(Int(context.usedPercent.rounded()))%")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(context.usedPercent >= 85
+                        ? CodexPalette.yellow(for: appearance)
+                        : theme.primary)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.10))
+                    Capsule()
+                        .fill(theme.gradient)
+                        .frame(width: proxy.size.width * min(1, context.usedPercent / 100))
+                }
+            }
+            .frame(height: 6)
+            HStack {
+                Text(CodexLocalization.text(
+                    "\(formatTokenCount(context.usedContextTokens)) / \(formatTokenCount(context.contextWindowTokens)) 上下文",
+                    "\(formatTokenCount(context.usedContextTokens)) / \(formatTokenCount(context.contextWindowTokens)) context"
+                ))
+                Spacer()
+                Text(CodexLocalization.text(
+                    "Reasoning \(formatTokenCount(context.reasoningOutputTokens)) · 压缩 \(context.compactionCount)",
+                    "Reasoning \(formatTokenCount(context.reasoningOutputTokens)) · \(context.compactionCount) compactions"
+                ))
+            }
+            .font(.system(size: 8, weight: .medium, design: .monospaced))
+            .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .background(CodexGlassCard())
+        .help(CodexLocalization.text(
+            "基于最近一次 token_count 采样；子代理上下文会单独统计。",
+            "Based on the latest token_count sample; subagent contexts are tracked separately."
+        ))
+    }
+
+    private func taskEfficiencyCard(_ session: CodexSessionUsageSummary) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label(CodexLocalization.text("任务效率", "Task efficiency"), systemImage: "stopwatch.fill")
+                    .font(.system(size: 10.5, weight: .semibold))
+                Spacer()
+                Text(session.dominantModel ?? "—")
+                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 5) {
+                efficiencyMetric(
+                    CodexLocalization.text("轮次", "Turns"),
+                    "\(session.turnCount)",
+                    symbol: "arrow.triangle.2.circlepath"
+                )
+                efficiencyMetric(
+                    "TTFT",
+                    session.averageTimeToFirstTokenMilliseconds.map {
+                        String(format: "%.0fms", $0)
+                    } ?? "—",
+                    symbol: "bolt"
+                )
+                efficiencyMetric(
+                    CodexLocalization.text("平均耗时", "Avg turn"),
+                    session.averageTurnDurationSeconds.map(formatDuration) ?? "—",
+                    symbol: "timer"
+                )
+                efficiencyMetric(
+                    CodexLocalization.text("中止", "Aborted"),
+                    "\(session.abortedTurnCount)",
+                    symbol: "xmark.circle"
+                )
+            }
+        }
+        .padding(10)
+        .background(CodexGlassCard())
+    }
+
+    private func efficiencyMetric(
+        _ title: String,
+        _ value: String,
+        symbol: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 6.8, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    private func formatDuration(_ seconds: Double) -> String {
+        if seconds >= 60 {
+            return String(format: "%.1fm", seconds / 60)
+        }
+        return String(format: "%.1fs", seconds)
     }
 
     private var conversationLoadingCard: some View {
@@ -1074,7 +1602,13 @@ struct CodexUsageMonitorPanel: View {
                 .foregroundStyle(statusColor)
         }
         .padding(12)
-        .background(statusColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 11))
+        .background {
+            ZStack {
+                CodexGlassCard(cornerRadius: 11)
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(statusColor.opacity(appearance == .dark ? 0.055 : 0.040))
+            }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 11)
                 .strokeBorder(statusColor.opacity(0.16), lineWidth: 0.5)
@@ -1241,6 +1775,8 @@ struct CodexUsageMonitorPanel: View {
                 }
             }
 
+            dataHealthSection
+
             settingsSection(CodexLocalization.text("刷新", "REFRESH")) {
                 settingPicker(CodexLocalization.text("频率", "Interval"), selection: $refreshInterval) {
                     ForEach(CodexRefreshInterval.allCases) { Text($0.title).tag($0) }
@@ -1284,8 +1820,8 @@ struct CodexUsageMonitorPanel: View {
                 codexSectionLabel(CodexLocalization.text("登录与隐私", "LOGIN & PRIVACY"))
                 Label {
                     Text(CodexLocalization.text(
-                        "额度通过 OAuth API 读取；本地统计只读取会话中的 token_count、模型和服务等级字段，不读取或缓存提示词，缓存不包含访问 Token。",
-                        "Quota is read through the OAuth API. Local statistics read only token_count, model, and service-tier fields, never prompts; caches contain no access tokens."
+                        "额度和官方活动通过 OAuth API 只读获取；本地统计只读取会话中的 token_count、模型及任务元数据，不读取或缓存提示词，缓存不包含访问 Token。",
+                        "Quota and official activity are fetched read-only through the OAuth API. Local statistics read token_count, model, and task metadata only, never prompts; caches contain no access tokens."
                     ))
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
@@ -1298,13 +1834,157 @@ struct CodexUsageMonitorPanel: View {
             }
 
             Text(CodexLocalization.text(
-                "状态数据来自 status.openai.com；额度接口与字段兼容逻辑参考 CodexBar（MIT）。",
-                "Status data comes from status.openai.com. Quota API and compatibility logic reference CodexBar (MIT)."
+                "状态数据来自 status.openai.com；额度来源、接口与字段兼容逻辑参考 CodexBar（MIT）。",
+                "Status data comes from status.openai.com. Quota sources and compatibility logic reference CodexBar (MIT)."
             ))
                 .font(.system(size: 8.5))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var dataHealthSection: some View {
+        let healthyCount = [
+            monitor.usage != nil,
+            monitor.accountInsights?.officialUsage != nil,
+            monitor.recentUsage != nil,
+            monitor.recentUsage?.pricingSource != nil,
+            monitor.serviceStatus != nil,
+        ].filter { $0 }.count
+
+        return settingsSection(CodexLocalization.text("数据健康", "DATA HEALTH")) {
+            HStack(spacing: 8) {
+                Image(systemName: healthyCount == 5
+                    ? "checkmark.seal.fill"
+                    : "exclamationmark.triangle.fill")
+                    .foregroundStyle(healthyCount == 5
+                        ? CodexPalette.green(for: appearance)
+                        : CodexPalette.yellow(for: appearance))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(CodexLocalization.text(
+                        "\(healthyCount)/5 个数据源正常",
+                        "\(healthyCount)/5 data sources healthy"
+                    ))
+                        .font(.system(size: 10.5, weight: .semibold))
+                    Text(CodexLocalization.text(
+                        "额度、官方活动、本地日志、价格与服务状态",
+                        "Quota, official activity, local logs, pricing, and service status"
+                    ))
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if monitor.isRefreshing {
+                    ProgressView().controlSize(.mini)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+
+            CodexGlassDivider()
+            dataHealthRow(
+                symbol: "gauge.with.dots.needle.67percent",
+                title: CodexLocalization.text("额度", "Quota"),
+                detail: resolvedQuotaSourceLabel,
+                date: monitor.usage?.fetchedAt,
+                healthy: monitor.usage != nil
+            )
+            CodexGlassDivider()
+            dataHealthRow(
+                symbol: "checkmark.seal",
+                title: CodexLocalization.text("官方活动", "Official activity"),
+                detail: officialActivitySourceDetail,
+                date: monitor.accountInsights?.fetchedAt,
+                healthy: monitor.accountInsights?.officialUsage != nil
+            )
+            CodexGlassDivider()
+            dataHealthRow(
+                symbol: "internaldrive",
+                title: CodexLocalization.text("本地用量", "Local usage"),
+                detail: localCoverageDetail,
+                date: monitor.recentUsage?.updatedAt,
+                healthy: monitor.recentUsage != nil
+            )
+            CodexGlassDivider()
+            dataHealthRow(
+                symbol: "dollarsign.circle",
+                title: CodexLocalization.text("价格目录", "Pricing"),
+                detail: monitor.recentUsage?.pricingSource
+                    ?? CodexLocalization.text("等待扫描", "Waiting for scan"),
+                date: monitor.recentUsage?.updatedAt,
+                healthy: monitor.recentUsage?.pricingSource != nil
+            )
+            CodexGlassDivider()
+            dataHealthRow(
+                symbol: "waveform.path.ecg",
+                title: CodexLocalization.text("服务状态", "Service status"),
+                detail: monitor.serviceStatus?.overallIndicator.label
+                    ?? CodexLocalization.text("暂不可用", "Unavailable"),
+                date: monitor.serviceStatus?.fetchedAt,
+                healthy: monitor.serviceStatus != nil
+            )
+        }
+    }
+
+    private func dataHealthRow(
+        symbol: String,
+        title: String,
+        detail: String,
+        date: Date?,
+        healthy: Bool
+    ) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(healthy ? theme.primary : CodexPalette.yellow(for: appearance))
+                .frame(width: 17)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 9.5, weight: .semibold))
+                Text(detail)
+                    .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 5)
+            Text(date?.formatted(date: .omitted, time: .shortened)
+                ?? CodexLocalization.text("无数据", "No data"))
+                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+            Circle()
+                .fill(healthy
+                    ? CodexPalette.green(for: appearance)
+                    : CodexPalette.yellow(for: appearance))
+                .frame(width: 6, height: 6)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+    }
+
+    private var officialActivitySourceDetail: String {
+        guard let snapshot = monitor.accountInsights else {
+            return monitor.accountInsightsError
+                ?? CodexLocalization.text("等待 OAuth API", "Waiting for OAuth API")
+        }
+        if snapshot.issues.isEmpty {
+            return "OpenAI Account Usage API"
+        }
+        return CodexLocalization.text(
+            "OpenAI Account Usage API · \(snapshot.issues.count) 项降级",
+            "OpenAI Account Usage API · \(snapshot.issues.count) fallback(s)"
+        )
+    }
+
+    private var localCoverageDetail: String {
+        guard let snapshot = monitor.recentUsage else {
+            return monitor.tokenUsageError
+                ?? CodexLocalization.text("等待 ~/.codex 扫描", "Waiting for ~/.codex scan")
+        }
+        return CodexLocalization.text(
+            "30 天 · \(snapshot.recentSessions.count) 个会话",
+            "30 days · \(snapshot.recentSessions.count) sessions"
+        )
     }
 
     private func settingsSection<Content: View>(
@@ -1551,13 +2231,61 @@ struct CodexUsageMonitorPanel: View {
 
 private enum CodexPanelPage: Hashable {
     case overview
-    case conversations
+    case insights
+    case work
     case status
     case settings
 }
 
+private enum CodexInsightsSection: String, CaseIterable, Identifiable {
+    case official
+    case local
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .official: return CodexLocalization.text("官方活动", "Official")
+        case .local: return CodexLocalization.text("本地用量", "Local usage")
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .official: return "checkmark.seal.fill"
+        case .local: return "internaldrive.fill"
+        }
+    }
+}
+
+private enum CodexWorkSection: String, CaseIterable, Identifiable {
+    case projects
+    case conversations
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .projects: return CodexLocalization.text("项目", "Projects")
+        case .conversations: return CodexLocalization.text("对话 / 任务", "Conversations / Tasks")
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .projects: return "folder.fill"
+        case .conversations: return "bubble.left.and.text.bubble.right.fill"
+        }
+    }
+    var help: String {
+        switch self {
+        case .projects:
+            return CodexLocalization.text("查看按项目汇总的本地用量", "View local usage grouped by project")
+        case .conversations:
+            return CodexLocalization.text("查看最近对话、上下文和任务效率", "View recent conversations, context, and task efficiency")
+        }
+    }
+}
+
 private struct CodexConversationRow: View {
     let conversation: CodexRecentConversation
+    let usage: CodexSessionUsageSummary?
     let theme: CodexThemeColors
     let activeColor: Color
     let action: () -> Void
@@ -1605,12 +2333,26 @@ private struct CodexConversationRow: View {
                         Text(conversation.projectName)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if let model = usage?.dominantModel {
+                            Text("·")
+                            Text(model)
+                                .lineLimit(1)
+                        }
                         Text("·")
                         Text(conversation.relativeActivity)
                             .lineLimit(1)
                     }
                     .font(.system(size: 8.5, weight: .medium))
                     .foregroundStyle(.secondary)
+                    if let usage {
+                        Text(CodexLocalization.text(
+                            "\(compactTokenCount(usage.tokens)) Token · \(usage.turnCount) 轮次",
+                            "\(compactTokenCount(usage.tokens)) tokens · \(usage.turnCount) turns"
+                        ))
+                            .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer(minLength: 6)
@@ -1646,6 +2388,18 @@ private struct CodexConversationRow: View {
             conversation.title ?? CodexLocalization.text("未命名任务", "Untitled task")
         )
         .accessibilityHint(CodexLocalization.text("在 Codex 中打开此任务", "Open this task in Codex"))
+    }
+
+    private func compactTokenCount(_ value: Int) -> String {
+        let number = Double(value)
+        switch value {
+        case 1_000_000...:
+            return String(format: "%.1fM", number / 1_000_000)
+        case 1_000...:
+            return String(format: "%.1fK", number / 1_000)
+        default:
+            return value.formatted()
+        }
     }
 }
 
@@ -1776,20 +2530,51 @@ private struct CodexAccentSwitchStyle: ToggleStyle {
     }
 }
 
-private struct CodexGlassCard: View {
+private struct CodexCardThemeKey: EnvironmentKey {
+    static let defaultValue = CodexThemeColors(
+        primary: .accentColor,
+        secondary: .accentColor.opacity(0.55)
+    )
+}
+
+private extension EnvironmentValues {
+    var codexCardTheme: CodexThemeColors {
+        get { self[CodexCardThemeKey.self] }
+        set { self[CodexCardThemeKey.self] = newValue }
+    }
+}
+
+struct CodexGlassCard: View {
     var cornerRadius: CGFloat = 8
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.codexCardTheme) private var cardTheme
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: cornerRadius).fill(Color.primary.opacity(0.05))
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.050)
+                        : Color.white.opacity(0.40)
+                )
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            cardTheme.primary.opacity(colorScheme == .dark ? 0.035 : 0.045),
+                            cardTheme.secondary.opacity(colorScheme == .dark ? 0.022 : 0.025),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
             RoundedRectangle(cornerRadius: cornerRadius)
                 .strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.20), Color.white.opacity(0.04)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.5
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.085)
+                        : Color.black.opacity(0.055),
+                    lineWidth: 0.7
                 )
         }
     }

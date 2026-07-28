@@ -8,11 +8,14 @@ final class CodexUsageMonitor: ObservableObject {
     @Published private(set) var recentUsage: CodexRecentUsageSnapshot?
     @Published private(set) var recentConversations: CodexConversationSnapshot?
     @Published private(set) var serviceStatus: OpenAIStatusSnapshot?
+    @Published private(set) var accountInsights: CodexAccountInsightsSnapshot?
+    @Published private(set) var quotaPace: CodexQuotaPaceSnapshot?
     @Published private(set) var isRefreshing = false
     @Published private(set) var isRefreshingConversations = false
     @Published private(set) var usageError: String?
     @Published private(set) var tokenUsageError: String?
     @Published private(set) var statusError: String?
+    @Published private(set) var accountInsightsError: String?
     @Published private(set) var settingsRevision = 0
     @Published private(set) var resolvedQuotaUsageSource: CodexQuotaUsageSource?
 
@@ -21,9 +24,13 @@ final class CodexUsageMonitor: ObservableObject {
     private let service: CodexUsageService
     private let localUsageScanner: CodexLocalUsageScanner
     private let conversationScanner: CodexConversationScanner
+    private let accountInsightsService: CodexAccountInsightsService
+    private let quotaPaceStore: CodexQuotaPaceStore
     private var refreshLoop: Task<Void, Never>?
     private var refreshOperation: Task<Void, Never>?
     private var conversationRefreshOperation: Task<Void, Never>?
+    private var refreshGeneration: UInt64 = 0
+    private var conversationRefreshGeneration: UInt64 = 0
     private var defaultsObserver: AnyCancellable?
     private var hasStarted = false
     private var scheduledInterval: CodexRefreshInterval
@@ -33,17 +40,26 @@ final class CodexUsageMonitor: ObservableObject {
         widgetId: String,
         service: CodexUsageService = CodexUsageService(),
         localUsageScanner: CodexLocalUsageScanner = CodexLocalUsageScanner(),
-        conversationScanner: CodexConversationScanner = CodexConversationScanner()
+        conversationScanner: CodexConversationScanner = CodexConversationScanner(),
+        accountInsightsService: CodexAccountInsightsService = CodexAccountInsightsService(),
+        quotaPaceStore: CodexQuotaPaceStore = CodexQuotaPaceStore()
     ) {
         self.widgetId = widgetId
         self.service = service
         self.localUsageScanner = localUsageScanner
         self.conversationScanner = conversationScanner
+        self.accountInsightsService = accountInsightsService
+        self.quotaPaceStore = quotaPaceStore
         scheduledInterval = Self.readRefreshInterval(widgetId: widgetId)
         scheduledQuotaUsageSource = Self.readQuotaUsageSource(widgetId: widgetId)
         usage = Self.readCache(CodexUsageSnapshot.self, key: Self.usageCacheKey(widgetId))
         recentUsage = Self.readCache(CodexRecentUsageSnapshot.self, key: Self.tokenUsageCacheKey(widgetId))
         serviceStatus = Self.readCache(OpenAIStatusSnapshot.self, key: Self.statusCacheKey(widgetId))
+        accountInsights = Self.readCache(
+            CodexAccountInsightsSnapshot.self,
+            key: Self.accountInsightsCacheKey(widgetId)
+        )
+        quotaPace = Self.readCache(CodexQuotaPaceSnapshot.self, key: Self.quotaPaceCacheKey(widgetId))
         resolvedQuotaUsageSource = UserDefaults.standard.string(
             forKey: Self.resolvedSourceCacheKey(widgetId)
         ).flatMap(CodexQuotaUsageSource.init(rawValue:))
@@ -73,21 +89,34 @@ final class CodexUsageMonitor: ObservableObject {
 
     func refresh() {
         refreshOperation?.cancel()
+        conversationRefreshOperation?.cancel()
+        refreshGeneration &+= 1
+        conversationRefreshGeneration &+= 1
+        let generation = refreshGeneration
+        let conversationGeneration = conversationRefreshGeneration
         isRefreshing = true
         isRefreshingConversations = true
         refreshOperation = Task { [weak self] in
             guard let self else { return }
-            await self.performRefresh()
+            await self.performRefresh(
+                generation: generation,
+                conversationGeneration: conversationGeneration
+            )
         }
     }
 
     func refreshConversations() {
         conversationRefreshOperation?.cancel()
+        conversationRefreshGeneration &+= 1
+        let generation = conversationRefreshGeneration
         isRefreshingConversations = true
         let scanner = conversationScanner
         conversationRefreshOperation = Task { [weak self] in
             let snapshot = await scanner.scan()
-            guard let self, !Task.isCancelled else { return }
+            guard let self,
+                  !Task.isCancelled,
+                  generation == conversationRefreshGeneration
+            else { return }
             recentConversations = snapshot
             isRefreshingConversations = false
         }
@@ -128,31 +157,48 @@ final class CodexUsageMonitor: ObservableObject {
         usage: CodexUsageSnapshot?,
         status: OpenAIStatusSnapshot?,
         recentUsage: CodexRecentUsageSnapshot? = nil,
-        recentConversations: CodexConversationSnapshot? = nil
+        recentConversations: CodexConversationSnapshot? = nil,
+        accountInsights: CodexAccountInsightsSnapshot? = nil
     ) {
+        refreshOperation?.cancel()
+        conversationRefreshOperation?.cancel()
+        refreshGeneration &+= 1
+        conversationRefreshGeneration &+= 1
         self.usage = usage
         serviceStatus = status
         self.recentUsage = recentUsage
         self.recentConversations = recentConversations
+        self.accountInsights = accountInsights
         resolvedQuotaUsageSource = .oauth
         isRefreshing = false
         hasStarted = true
     }
     #endif
 
-    private func performRefresh() async {
+    private func performRefresh(
+        generation: UInt64,
+        conversationGeneration: UInt64
+    ) async {
         let quotaSource = scheduledQuotaUsageSource
         async let usageResult = Self.capture { try await self.service.fetchUsage(source: quotaSource) }
         async let tokenUsageResult = Self.capture { try await self.localUsageScanner.scan() }
         async let conversationSnapshot = self.conversationScanner.scan()
         async let statusResult = Self.capture { try await self.service.fetchStatus() }
+        async let accountInsightsResult = Self.capture {
+            try await self.accountInsightsService.fetch()
+        }
 
-        switch await usageResult {
+        let resolvedUsageResult = await usageResult
+        guard canCommitRefresh(generation) else { return }
+        switch resolvedUsageResult {
         case let .success(result):
             usage = result.snapshot
+            let pace = quotaPaceStore.record(usage: result.snapshot, widgetId: widgetId)
+            quotaPace = pace
             resolvedQuotaUsageSource = result.resolvedSource
             usageError = nil
             Self.cache(result.snapshot, key: Self.usageCacheKey(widgetId))
+            Self.cache(pace, key: Self.quotaPaceCacheKey(widgetId))
             UserDefaults.standard.set(
                 result.resolvedSource.rawValue,
                 forKey: Self.resolvedSourceCacheKey(widgetId)
@@ -161,7 +207,9 @@ final class CodexUsageMonitor: ObservableObject {
             if !Task.isCancelled { usageError = error.localizedDescription }
         }
 
-        switch await tokenUsageResult {
+        let resolvedTokenUsageResult = await tokenUsageResult
+        guard canCommitRefresh(generation) else { return }
+        switch resolvedTokenUsageResult {
         case let .success(snapshot):
             recentUsage = snapshot
             tokenUsageError = nil
@@ -170,7 +218,9 @@ final class CodexUsageMonitor: ObservableObject {
             if !Task.isCancelled { tokenUsageError = error.localizedDescription }
         }
 
-        switch await statusResult {
+        let resolvedStatusResult = await statusResult
+        guard canCommitRefresh(generation) else { return }
+        switch resolvedStatusResult {
         case let .success(snapshot):
             serviceStatus = snapshot
             statusError = nil
@@ -178,9 +228,29 @@ final class CodexUsageMonitor: ObservableObject {
         case let .failure(error):
             if !Task.isCancelled { statusError = error.localizedDescription }
         }
-        recentConversations = await conversationSnapshot
-        isRefreshingConversations = false
+
+        let resolvedAccountInsightsResult = await accountInsightsResult
+        guard canCommitRefresh(generation) else { return }
+        switch resolvedAccountInsightsResult {
+        case let .success(snapshot):
+            accountInsights = snapshot
+            accountInsightsError = nil
+            Self.cache(snapshot, key: Self.accountInsightsCacheKey(widgetId))
+        case let .failure(error):
+            if !Task.isCancelled { accountInsightsError = error.localizedDescription }
+        }
+
+        let resolvedConversationSnapshot = await conversationSnapshot
+        guard canCommitRefresh(generation) else { return }
+        if conversationGeneration == conversationRefreshGeneration {
+            recentConversations = resolvedConversationSnapshot
+            isRefreshingConversations = false
+        }
         isRefreshing = false
+    }
+
+    private func canCommitRefresh(_ generation: UInt64) -> Bool {
+        !Task.isCancelled && generation == refreshGeneration
     }
 
     private func configurationDidChange() {
@@ -263,6 +333,14 @@ final class CodexUsageMonitor: ObservableObject {
 
     private static func tokenUsageCacheKey(_ widgetId: String) -> String {
         "widget.\(widgetId).cachedRecentTokenUsage"
+    }
+
+    private static func quotaPaceCacheKey(_ widgetId: String) -> String {
+        "widget.\(widgetId).cachedQuotaPace"
+    }
+
+    private static func accountInsightsCacheKey(_ widgetId: String) -> String {
+        "widget.\(widgetId).cachedAccountInsights"
     }
 
     private static func resolvedSourceCacheKey(_ widgetId: String) -> String {
