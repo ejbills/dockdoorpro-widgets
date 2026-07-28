@@ -1075,17 +1075,22 @@ struct CodexUsageMonitorPanel: View {
                         if section != .projects { selectedProjectPath = nil }
                     }
                 } label: {
-                    Label(section.title, systemImage: section.symbol)
-                        .font(.system(size: 9, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .foregroundStyle(workSection == section ? theme.primary : .secondary)
-                        .background(
-                            theme.primary.opacity(workSection == section ? 0.13 : 0),
-                            in: RoundedRectangle(cornerRadius: 7)
-                        )
+                    HStack(spacing: 6) {
+                        Image(systemName: section.symbol)
+                        Text(section.title)
+                    }
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 34)
+                    .contentShape(Rectangle())
+                    .foregroundStyle(workSection == section ? theme.primary : .secondary)
+                    .background(
+                        theme.primary.opacity(workSection == section ? 0.13 : 0),
+                        in: RoundedRectangle(cornerRadius: 7)
+                    )
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .contentShape(Rectangle())
                 .help(section.help)
             }
         }
