@@ -31,6 +31,7 @@ struct CodexUsageMonitorPanel: View {
     @State private var insightsSection = CodexInsightsSection.official
     @State private var workSection = CodexWorkSection.projects
     @State private var selectedProjectPath: String?
+    @State private var hoveredConversationID: String?
     @State private var hoveredUsageDayID: String?
     @State private var hoveredUsageLocation: CGPoint?
     @State private var usageTooltipSize = CGSize(width: 126, height: 80)
@@ -84,6 +85,18 @@ struct CodexUsageMonitorPanel: View {
                 alignment: .topLeading
             )
             .scrollIndicators(.hidden)
+            .overlay(alignment: .top) {
+                ZStack(alignment: .top) {
+                    hoveredConversationMetricsOverlay
+                }
+                .frame(width: panelContentWidth, alignment: .top)
+                .padding(.top, 8)
+                .zIndex(30)
+                .animation(
+                    .spring(response: 0.26, dampingFraction: 0.86),
+                    value: hoveredConversationID
+                )
+            }
         }
         .frame(width: panelWidth, alignment: .leading)
         .environment(\.codexCardTheme, theme)
@@ -107,6 +120,12 @@ struct CodexUsageMonitorPanel: View {
             #if !CODEX_USAGE_TESTING
             hoveredHeaderPage = nil
             #endif
+            hoveredConversationID = nil
+        }
+        .onChange(of: page) { _, newPage in
+            if newPage != .work {
+                hoveredConversationID = nil
+            }
         }
         .onChange(of: monitor.settingsRevision) { _, _ in
             loadSettings()
@@ -1073,6 +1092,7 @@ struct CodexUsageMonitorPanel: View {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
                         workSection = section
                         if section != .projects { selectedProjectPath = nil }
+                        hoveredConversationID = nil
                     }
                 } label: {
                     HStack(spacing: 6) {
@@ -1315,11 +1335,47 @@ struct CodexUsageMonitorPanel: View {
     private var conversationsPage: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let snapshot = monitor.recentConversations {
-                if let context = monitor.recentUsage?.latestContextHealth {
-                    contextHealthCard(context)
-                }
-                if let session = monitor.recentUsage?.recentSessions.first {
-                    taskEfficiencyCard(session)
+                if let usageSnapshot = monitor.recentUsage,
+                   let focusedConversation = focusedConversation(
+                       in: snapshot,
+                       usage: usageSnapshot
+                   )
+                {
+                    Group {
+                        if let context = contextHealth(
+                            for: focusedConversation.id,
+                            in: usageSnapshot
+                        ) {
+                            contextHealthCard(context)
+                        } else {
+                            conversationMetricUnavailableCard(
+                                title: CodexLocalization.text("上下文健康", "Context health"),
+                                symbol: "brain.head.profile",
+                                message: CodexLocalization.text(
+                                    "该会话暂无上下文采样",
+                                    "No context sample for this conversation"
+                                )
+                            )
+                        }
+
+                        if let session = sessionUsage(
+                            for: focusedConversation.id,
+                            in: usageSnapshot
+                        ) {
+                            taskEfficiencyCard(session)
+                        } else {
+                            conversationMetricUnavailableCard(
+                                title: CodexLocalization.text("任务效率", "Task efficiency"),
+                                symbol: "stopwatch.fill",
+                                message: CodexLocalization.text(
+                                    "该会话暂无任务效率数据",
+                                    "No task efficiency data for this conversation"
+                                )
+                            )
+                        }
+                    }
+                    .id(focusedConversation.id)
+                    .transition(.opacity.combined(with: .scale(scale: 0.992)))
                 }
 
                 HStack(spacing: 10) {
@@ -1358,10 +1414,15 @@ struct CodexUsageMonitorPanel: View {
                                     conversation: conversation,
                                     usage: sessionUsage,
                                     theme: theme,
-                                    activeColor: CodexPalette.green(for: appearance)
-                                ) {
-                                    openConversation(conversation)
-                                }
+                                    activeColor: CodexPalette.green(for: appearance),
+                                    onHoverChange: { hovering in
+                                        updateHoveredConversation(
+                                            conversation.id,
+                                            hovering: hovering
+                                        )
+                                    },
+                                    action: { openConversation(conversation) }
+                                )
                                 if index < snapshot.conversations.count - 1 {
                                     CodexGlassDivider().padding(.leading, 43)
                                 }
@@ -1376,6 +1437,228 @@ struct CodexUsageMonitorPanel: View {
                 conversationLoadingCard
             }
         }
+    }
+
+    private func focusedConversation(
+        in snapshot: CodexConversationSnapshot,
+        usage: CodexRecentUsageSnapshot
+    ) -> CodexRecentConversation? {
+        if let hoveredConversationID,
+           let hovered = snapshot.conversations.first(where: {
+               $0.id == hoveredConversationID
+           })
+        {
+            return hovered
+        }
+
+        return snapshot.conversations.first(where: { conversation in
+            sessionUsage(for: conversation.id, in: usage) != nil
+                || contextHealth(for: conversation.id, in: usage) != nil
+        }) ?? snapshot.conversations.first
+    }
+
+    private func sessionUsage(
+        for conversationID: String,
+        in snapshot: CodexRecentUsageSnapshot
+    ) -> CodexSessionUsageSummary? {
+        snapshot.recentSessions.first { $0.id == conversationID }
+    }
+
+    private func contextHealth(
+        for conversationID: String,
+        in snapshot: CodexRecentUsageSnapshot
+    ) -> CodexContextHealthSnapshot? {
+        snapshot.recentContextHealth.first {
+            $0.sessionID == conversationID
+        } ?? snapshot.recentContextHealth.first {
+            $0.parentSessionID == conversationID
+        }
+    }
+
+    private func updateHoveredConversation(
+        _ conversationID: String,
+        hovering: Bool
+    ) {
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.86)) {
+            if hovering {
+                hoveredConversationID = conversationID
+            } else if hoveredConversationID == conversationID {
+                hoveredConversationID = nil
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var hoveredConversationMetricsOverlay: some View {
+        if page == .work,
+           workSection == .conversations,
+           let conversationID = hoveredConversationID,
+           let conversations = monitor.recentConversations,
+           let conversation = conversations.conversations.first(where: {
+               $0.id == conversationID
+           }),
+           let usage = monitor.recentUsage
+        {
+            hoveredConversationMetricsHUD(
+                conversation: conversation,
+                context: contextHealth(for: conversationID, in: usage),
+                session: sessionUsage(for: conversationID, in: usage)
+            )
+            .id(conversation.id)
+            .transition(.asymmetric(
+                insertion: .offset(y: -10)
+                    .combined(with: .opacity)
+                    .combined(with: .scale(scale: 0.985, anchor: .top)),
+                removal: .offset(y: -5)
+                    .combined(with: .opacity)
+                    .combined(with: .scale(scale: 0.99, anchor: .top))
+            ))
+        }
+    }
+
+    private func hoveredConversationMetricsHUD(
+        conversation: CodexRecentConversation,
+        context: CodexContextHealthSnapshot?,
+        session: CodexSessionUsageSummary?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(theme.gradient)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(conversation.title ?? CodexLocalization.text("未命名对话", "Untitled conversation"))
+                        .font(.system(size: 9, weight: .semibold))
+                        .lineLimit(1)
+                    Text(conversation.projectName)
+                        .font(.system(size: 7.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 6)
+
+                Text(CodexLocalization.text("悬停数据", "Hover metrics"))
+                    .font(.system(size: 7.5, weight: .semibold))
+                    .foregroundStyle(theme.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(theme.primary.opacity(0.11), in: Capsule())
+            }
+
+            HStack(spacing: 6) {
+                Label(CodexLocalization.text("上下文", "Context"), systemImage: "brain.head.profile")
+                    .font(.system(size: 7.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(context.map { "\(Int($0.usedPercent.rounded()))%" } ?? "—")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(
+                        (context?.usedPercent ?? 0) >= 85
+                            ? CodexPalette.yellow(for: appearance)
+                            : theme.primary
+                    )
+
+                Text(context.map {
+                    "\(formatTokenCount($0.usedContextTokens))/\(formatTokenCount($0.contextWindowTokens))"
+                } ?? "—")
+                    .font(.system(size: 7.5, weight: .semibold, design: .monospaced))
+
+                Spacer(minLength: 4)
+
+                Text(context.map {
+                    CodexLocalization.text(
+                        "Reasoning \(formatTokenCount($0.reasoningOutputTokens)) · 压缩 \($0.compactionCount)",
+                        "Reasoning \(formatTokenCount($0.reasoningOutputTokens)) · \($0.compactionCount) compactions"
+                    )
+                } ?? CodexLocalization.text("暂无上下文采样", "No context sample"))
+                    .font(.system(size: 7.2, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(CodexGlassCard(cornerRadius: 6))
+
+            HStack(spacing: 5) {
+                hoverEfficiencyMetric(
+                    CodexLocalization.text("轮次", "Turns"),
+                    session.map { "\($0.turnCount)" } ?? "—"
+                )
+                hoverEfficiencyMetric(
+                    "TTFT",
+                    session?.averageTimeToFirstTokenMilliseconds.map {
+                        String(format: "%.0fms", $0)
+                    } ?? "—"
+                )
+                hoverEfficiencyMetric(
+                    CodexLocalization.text("平均", "Avg"),
+                    session?.averageTurnDurationSeconds.map(formatDuration) ?? "—"
+                )
+                hoverEfficiencyMetric(
+                    CodexLocalization.text("中止", "Aborted"),
+                    session.map { "\($0.abortedTurnCount)" } ?? "—"
+                )
+            }
+        }
+        .padding(9)
+        .frame(width: panelContentWidth, alignment: .leading)
+        .background(CodexFloatingGlassCard(cornerRadius: 11))
+        .shadow(
+            color: theme.primary.opacity(appearance == .dark ? 0.13 : 0.09),
+            radius: 13,
+            y: 4
+        )
+        .shadow(
+            color: .black.opacity(appearance == .dark ? 0.26 : 0.14),
+            radius: 9,
+            y: 4
+        )
+        .compositingGroup()
+        .allowsHitTesting(false)
+    }
+
+    private func hoverEfficiencyMetric(
+        _ title: String,
+        _ value: String
+    ) -> some View {
+        HStack(spacing: 3) {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .fontWeight(.semibold)
+        }
+        .font(.system(size: 7.3, weight: .medium, design: .monospaced))
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .background(CodexGlassCard(cornerRadius: 6))
+    }
+
+    private func conversationMetricUnavailableCard(
+        title: String,
+        symbol: String,
+        message: String
+    ) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 10.5, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 10.5, weight: .semibold))
+                Text(message)
+                    .font(.system(size: 8.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+        .background(CodexGlassCard())
     }
 
     private func contextHealthCard(_ context: CodexContextHealthSnapshot) -> some View {
@@ -2293,6 +2576,7 @@ private struct CodexConversationRow: View {
     let usage: CodexSessionUsageSummary?
     let theme: CodexThemeColors
     let activeColor: Color
+    let onHoverChange: (Bool) -> Void
     let action: () -> Void
 
     @State private var isHovered = false
@@ -2387,8 +2671,12 @@ private struct CodexConversationRow: View {
             withAnimation(.easeOut(duration: 0.14)) {
                 isHovered = hovering
             }
+            onHoverChange(hovering)
         }
-        .help(CodexLocalization.text("在 Codex 中打开", "Open in Codex"))
+        .help(CodexLocalization.text(
+            "悬停查看此会话的上下文与任务效率；点击在 Codex 中打开",
+            "Hover to inspect this conversation's context and efficiency; click to open in Codex"
+        ))
         .accessibilityLabel(
             conversation.title ?? CodexLocalization.text("未命名任务", "Untitled task")
         )
@@ -2580,6 +2868,62 @@ struct CodexGlassCard: View {
                         ? Color.white.opacity(0.085)
                         : Color.black.opacity(0.055),
                     lineWidth: 0.7
+                )
+        }
+    }
+}
+
+private struct CodexFloatingGlassCard: View {
+    var cornerRadius: CGFloat = 11
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.codexCardTheme) private var cardTheme
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.ultraThinMaterial)
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.035)
+                        : Color.white.opacity(0.22)
+                )
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            cardTheme.primary.opacity(colorScheme == .dark ? 0.075 : 0.065),
+                            Color.clear,
+                            cardTheme.secondary.opacity(colorScheme == .dark ? 0.050 : 0.040),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.20 : 0.52),
+                            Color.white.opacity(colorScheme == .dark ? 0.07 : 0.16),
+                            Color.clear,
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.8
+                )
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .strokeBorder(
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.075)
+                        : Color.black.opacity(0.050),
+                    lineWidth: 0.5
                 )
         }
     }
