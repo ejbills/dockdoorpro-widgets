@@ -2012,7 +2012,9 @@ struct CodexUsageMonitorPanel: View {
                 .onChange(of: showStatus) { _, value in
                     monitor.writeSetting(value, key: "showStatus")
                 }
-                CodexGlassDivider()
+            }
+
+            settingsSection(CodexLocalization.text("PANEL 显示", "PANEL DISPLAY")) {
                 HStack {
                     Text(CodexLocalization.text(
                         "显示额外模型额度",

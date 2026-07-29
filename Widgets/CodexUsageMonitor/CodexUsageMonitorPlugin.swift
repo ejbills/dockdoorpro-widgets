@@ -61,7 +61,10 @@ final class CodexUsageMonitorPlugin: WidgetPlugin, DockDoorWidgetProvider {
             ),
             .toggle(
                 key: "showExtraModelQuotas",
-                label: CodexLocalization.text("显示额外模型额度", "Show Extra Model Quotas"),
+                label: CodexLocalization.text(
+                    "Panel 显示额外模型额度",
+                    "Show Extra Model Quotas in Panel"
+                ),
                 defaultValue: true
             ),
         ]
