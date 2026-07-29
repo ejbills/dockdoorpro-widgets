@@ -672,11 +672,18 @@ struct CodexUsageMonitorPanel: View {
                         ForEach(Array(chartDays.enumerated()), id: \.element.id) { index, day in
                             let value = chartValues[index]
                             let isHovered = hoveredUsageDayID == day.id
+                            let hasHoveredDay = hoveredUsageDayID != nil
                             VStack(spacing: 3) {
                                 Spacer(minLength: 0)
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(theme.primary.opacity(
-                                        isHovered ? 1 : (index >= chartDays.count - 2 ? 0.88 : 0.52)
+                                        isHovered
+                                            ? 1
+                                            : (
+                                                hasHoveredDay
+                                                    ? 0.20
+                                                    : (index >= chartDays.count - 2 ? 0.88 : 0.52)
+                                            )
                                     ))
                                     .frame(height: max(3, CGFloat(value / peak) * 72))
                                 Text(chartDayLabel(day.dayKey))
@@ -686,7 +693,9 @@ struct CodexUsageMonitorPanel: View {
                                         design: .monospaced
                                     ))
                                     .foregroundStyle(
-                                        isHovered ? theme.primary : Color.secondary.opacity(0.72)
+                                        isHovered
+                                            ? theme.primary
+                                            : Color.secondary.opacity(hasHoveredDay ? 0.34 : 0.72)
                                     )
                                     .lineLimit(1)
                             }
@@ -695,6 +704,7 @@ struct CodexUsageMonitorPanel: View {
                     }
                     .frame(height: 92, alignment: .bottom)
                     .padding(.top, 10)
+                    .animation(.easeOut(duration: 0.14), value: hoveredUsageDayID)
 
                     if let hoveredDay, let hoveredUsageLocation {
                         let origin = usageTooltipOrigin(

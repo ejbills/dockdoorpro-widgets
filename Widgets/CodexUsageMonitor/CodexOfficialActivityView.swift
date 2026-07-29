@@ -232,9 +232,11 @@ struct CodexOfficialActivityView: View {
             CompactTrendChart(
                 points: points,
                 style: trendMode == .cumulative ? .line : .bars,
+                mode: trendMode,
                 primary: primary,
                 secondary: secondary
             )
+            .id(trendMode)
             .frame(height: 78)
 
             HStack {
@@ -548,25 +550,53 @@ private extension CodexOfficialActivityView {
             case .cumulative: return CodexLocalization.text("累计", "Cumulative")
             }
         }
+
+        var tooltipMetric: String {
+            switch self {
+            case .daily:
+                return CodexLocalization.text("当日 Token", "Daily tokens")
+            case .weekly:
+                return CodexLocalization.text("当周 Token", "Weekly tokens")
+            case .cumulative:
+                return CodexLocalization.text("累计 Token", "Cumulative tokens")
+            }
+        }
+    }
+}
+
+private struct CodexOfficialTrendTooltipSizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        let next = nextValue()
+        if next.width > 0, next.height > 0 {
+            value = next
+        }
     }
 }
 
 private struct CompactTrendChart: View {
-    enum Style {
+    enum Style: Equatable {
         case bars
         case line
     }
 
     let points: [CodexOfficialActivityView.TrendPoint]
     let style: Style
+    let mode: CodexOfficialActivityView.TrendMode
     let primary: Color
     let secondary: Color
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var hoveredIndex: Int?
+    @State private var hoveredLocation: CGPoint?
+    @State private var tooltipSize = CGSize(width: 118, height: 46)
 
     var body: some View {
         GeometryReader { proxy in
             let maximum = max(points.map(\.value).max() ?? 0, 1)
 
-            ZStack(alignment: .bottomLeading) {
+            ZStack(alignment: .topLeading) {
                 VStack(spacing: 0) {
                     Divider().opacity(0.18)
                     Spacer()
@@ -582,7 +612,9 @@ private struct CompactTrendChart: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if style == .bars {
                     HStack(alignment: .bottom, spacing: 2) {
-                        ForEach(points) { point in
+                        ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
+                            let isHovered = hoveredIndex == index
+                            let hasHoveredPoint = hoveredIndex != nil
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
                                 .fill(
                                     LinearGradient(
@@ -599,9 +631,21 @@ private struct CompactTrendChart: View {
                                         proxy.size.height * CGFloat(Double(point.value) / Double(maximum))
                                     )
                                 )
-                                .help("\(point.label) · \(point.value.formatted()) tokens")
+                                .opacity(isHovered || !hasHoveredPoint ? 1 : 0.20)
+                                .overlay {
+                                    if isHovered {
+                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                            .strokeBorder(
+                                                Color.white.opacity(
+                                                    colorScheme == .dark ? 0.42 : 0.72
+                                                ),
+                                                lineWidth: 0.8
+                                            )
+                                    }
+                                }
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 } else {
                     linePath(in: proxy.size, maximum: maximum)
                         .stroke(
@@ -621,9 +665,168 @@ private struct CompactTrendChart: View {
                                 endPoint: .bottom
                             )
                         )
+
+                    if let hoveredIndex, points.indices.contains(hoveredIndex) {
+                        let location = chartPoint(
+                            index: hoveredIndex,
+                            value: points[hoveredIndex].value,
+                            in: proxy.size,
+                            maximum: maximum
+                        )
+                        Rectangle()
+                            .fill(primary.opacity(colorScheme == .dark ? 0.32 : 0.24))
+                            .frame(width: 0.7, height: proxy.size.height)
+                            .offset(x: location.x)
+                        Circle()
+                            .fill(primary)
+                            .frame(width: 7, height: 7)
+                            .overlay {
+                                Circle()
+                                    .strokeBorder(Color.white.opacity(0.82), lineWidth: 1)
+                            }
+                            .shadow(color: primary.opacity(0.32), radius: 4)
+                            .offset(x: location.x - 3.5, y: location.y - 3.5)
+                    }
+                }
+
+                if let hoveredIndex,
+                   points.indices.contains(hoveredIndex),
+                   let pointer = hoveredLocation {
+                    let origin = tooltipOrigin(
+                        pointer: pointer,
+                        tooltipSize: tooltipSize,
+                        chartSize: proxy.size
+                    )
+                    trendTooltip(points[hoveredIndex])
+                        .background {
+                            GeometryReader { tooltipProxy in
+                                Color.clear.preference(
+                                    key: CodexOfficialTrendTooltipSizePreferenceKey.self,
+                                    value: tooltipProxy.size
+                                )
+                            }
+                        }
+                        .offset(x: origin.x, y: origin.y)
+                        .transition(.opacity)
+                        .zIndex(4)
                 }
             }
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case let .active(location):
+                    updateHover(at: location, chartSize: proxy.size)
+                case .ended:
+                    hoveredIndex = nil
+                    hoveredLocation = nil
+                }
+            }
+            .onPreferenceChange(CodexOfficialTrendTooltipSizePreferenceKey.self) { size in
+                guard size.width > 0, size.height > 0 else { return }
+                tooltipSize = size
+            }
+            .animation(.easeOut(duration: 0.14), value: hoveredIndex)
         }
+    }
+
+    private func trendTooltip(
+        _ point: CodexOfficialActivityView.TrendPoint
+    ) -> some View {
+        let formattedValue = point.value.formatted(
+            .number.locale(CodexLocalization.locale)
+        )
+
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(tooltipDate(point.date))
+                .font(.system(size: 8.5, weight: .semibold))
+            Text("\(mode.tooltipMetric) · \(formattedValue)")
+                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .foregroundStyle(primary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(trendTooltipBackground, in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(primary.opacity(0.26), lineWidth: 0.6)
+        }
+        .shadow(
+            color: .black.opacity(colorScheme == .dark ? 0.32 : 0.15),
+            radius: 5,
+            y: 2
+        )
+        .allowsHitTesting(false)
+    }
+
+    private var trendTooltipBackground: Color {
+        colorScheme == .dark
+            ? Color(red: 0.14, green: 0.17, blue: 0.21)
+            : Color(red: 0.87, green: 0.93, blue: 0.97)
+    }
+
+    private func tooltipDate(_ date: Date) -> String {
+        date.formatted(
+            .dateTime
+                .locale(CodexLocalization.locale)
+                .year()
+                .month(.abbreviated)
+                .day()
+        )
+    }
+
+    private func updateHover(at location: CGPoint, chartSize: CGSize) {
+        guard !points.isEmpty, chartSize.width > 0 else {
+            hoveredIndex = nil
+            hoveredLocation = nil
+            return
+        }
+
+        let clampedX = min(max(location.x, 0), chartSize.width)
+        let index: Int
+        if style == .bars {
+            let step = chartSize.width / CGFloat(points.count)
+            index = min(
+                points.count - 1,
+                max(0, Int(clampedX / max(step, 1)))
+            )
+        } else {
+            let ratio = clampedX / chartSize.width
+            index = min(
+                points.count - 1,
+                max(0, Int((ratio * CGFloat(max(points.count - 1, 0))).rounded()))
+            )
+        }
+
+        hoveredIndex = index
+        hoveredLocation = location
+    }
+
+    private func tooltipOrigin(
+        pointer: CGPoint,
+        tooltipSize: CGSize,
+        chartSize: CGSize
+    ) -> CGPoint {
+        let margin: CGFloat = 2
+        let gap: CGFloat = 8
+        let width = max(tooltipSize.width, 1)
+        let height = max(tooltipSize.height, 1)
+
+        let preferredRightX = pointer.x + gap
+        let x: CGFloat
+        if preferredRightX + width <= chartSize.width - margin {
+            x = preferredRightX
+        } else {
+            x = max(margin, pointer.x - gap - width)
+        }
+
+        let preferredAboveY = pointer.y - gap - height
+        let maxY = max(margin, chartSize.height - height - margin)
+        let y = preferredAboveY >= margin
+            ? min(preferredAboveY, maxY)
+            : min(maxY, pointer.y + gap)
+
+        return CGPoint(x: x, y: max(margin, y))
     }
 
     private func linePath(in size: CGSize, maximum: Int64) -> Path {
