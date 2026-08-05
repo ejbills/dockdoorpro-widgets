@@ -12,13 +12,6 @@ final class SimpleSearchPlugin: WidgetPlugin, DockDoorWidgetProvider, WidgetScro
     @MainActor private var scrollAccumulator: CGFloat = 0
 
     func settingsSchema() -> [WidgetSetting] {
-        // Migration one-shot : dérive la valeur du menu "Prefix Shortcuts" des anciens
-        // toggles pour que le menu affiche le bon état dès la 1re ouverture.
-        let psKey = "widget.\(id).prefixShortcuts"
-        if UserDefaults.standard.string(forKey: psKey) == nil {
-            UserDefaults.standard.set(prefixShortcutsMode(widgetId: id), forKey: psKey)
-        }
-
         let hidden = hiddenEngines(widgetId: id)
 
         let rawBuiltins = ["Google (g)", "DuckDuckGo (ddg)", "Bing (bg)", "Yahoo (yh)", "Qwant (qw)", "Kagi (ka)", "Brave (br)", "Ecosia (eco)", "Yandex (yx)", "YouTube (yt)", "Reddit (red)"]
@@ -68,7 +61,7 @@ final class SimpleSearchPlugin: WidgetPlugin, DockDoorWidgetProvider, WidgetScro
                     WidgetTableColumn(key: "url", title: "URL", kind: .text(placeholder: "youtube.com/results?search_query=[Input]"), width: .expanding),
                     WidgetTableColumn(key: "color", title: "Hex color", kind: .text(placeholder: "FF0000")),
                 ],
-                defaultRows: legacyCustomRows(widgetId: id)
+                defaultRows: []
             ),
 
             // ——— Groupe 2 : frappe ———

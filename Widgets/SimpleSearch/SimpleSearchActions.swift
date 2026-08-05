@@ -112,22 +112,8 @@ func resolvedShortcuts(widgetId: String) -> [String: String] {
 }
 
 /// Custom engines as table rows (columns: prefix, url, color).
-/// Falls back to migrating the legacy `custom_1…20` text fields until the user
-/// edits the table, so existing setups keep working after the SDK update.
 func customEngineRows(widgetId: String) -> [[String: String]] {
-    WidgetDefaults.tableRows(key: "customEngines", widgetId: widgetId, default: legacyCustomRows(widgetId: widgetId))
-}
-
-func legacyCustomRows(widgetId: String) -> [[String: String]] {
-    var rows: [[String: String]] = []
-    for i in 1...20 {
-        let v = WidgetDefaults.string(key: "custom_\(i)", widgetId: widgetId).trimmingCharacters(in: .whitespaces)
-        guard !v.isEmpty, let parsed = parseCustomEngine(v), !parsed.url.isEmpty else { continue }
-        var row = ["prefix": parsed.prefix, "url": parsed.url]
-        if let hex = parsed.hexColor { row["color"] = hex }
-        rows.append(row)
-    }
-    return rows
+    WidgetDefaults.tableRows(key: "customEngines", widgetId: widgetId, default: [])
 }
 
 /// Normalize a hex string from the color column (`#f00`, `f00`, `FF0000` → `FF0000`).
@@ -137,29 +123,6 @@ func normalizedHex(_ raw: String) -> String? {
     guard hexIsValid(s) else { return nil }
     if s.count == 3 { s = s.flatMap { [String($0), String($0)] }.joined() }
     return s.uppercased()
-}
-
-func parseCustomEngine(_ raw: String) -> (prefix: String, url: String, hexColor: String?)? {
-    let v = raw.trimmingCharacters(in: .whitespaces)
-    guard !v.isEmpty, let firstComma = v.firstIndex(of: ",") else { return nil }
-    let prefix = String(v[..<firstComma]).trimmingCharacters(in: .whitespaces).lowercased()
-    let rest = String(v[v.index(after: firstComma)...]).trimmingCharacters(in: .whitespaces)
-    guard !prefix.isEmpty, !rest.isEmpty else { return nil }
-
-    if let lastComma = rest.lastIndex(of: ",") {
-        let candidate = String(rest[rest.index(after: lastComma)...]).trimmingCharacters(in: .whitespaces)
-        let hexStr = candidate.hasPrefix("#") ? String(candidate.dropFirst()) : candidate
-        if hexIsValid(hexStr) {
-            let url = String(rest[..<lastComma]).trimmingCharacters(in: .whitespaces)
-            if !url.isEmpty {
-                let expanded = hexStr.count == 3
-                    ? hexStr.flatMap { [String($0), String($0)] }.joined()
-                    : hexStr
-                return (prefix, url, expanded.uppercased())
-            }
-        }
-    }
-    return (prefix, rest, nil)
 }
 
 private func hexIsValid(_ s: String) -> Bool {
@@ -217,19 +180,13 @@ private func urlFromShortcut(_ query: String, widgetId: String) -> URL? {
     return URL(string: template.hasPrefix("http") ? template : "https://\(template)")
 }
 
-// Réglage fusionné "Prefix Shortcuts" (menu 3 choix), remplace les 2 anciens toggles.
-// Migre automatiquement depuis les clés bool `shortcutsEnabled` + `tabConfirmsPrefix`
-// tant que l'utilisateur n'a pas touché au nouveau menu.
+// Réglage "Prefix Shortcuts" (menu 3 choix).
 let prefixShortcutsOff = "Off"
 let prefixShortcutsSpace = "Space to confirm"
 let prefixShortcutsSpaceTab = "Space or Tab to confirm"
 
 func prefixShortcutsMode(widgetId: String) -> String {
-    let stored = WidgetDefaults.string(key: "prefixShortcuts", widgetId: widgetId, default: "")
-    if !stored.isEmpty { return stored }
-    guard WidgetDefaults.bool(key: "shortcutsEnabled", widgetId: widgetId, default: true) else { return prefixShortcutsOff }
-    return WidgetDefaults.bool(key: "tabConfirmsPrefix", widgetId: widgetId, default: false)
-        ? prefixShortcutsSpaceTab : prefixShortcutsSpace
+    WidgetDefaults.string(key: "prefixShortcuts", widgetId: widgetId, default: prefixShortcutsSpace)
 }
 
 func shortcutsEnabled(widgetId: String) -> Bool {
@@ -267,28 +224,17 @@ func visibleEngineKeys(widgetId: String) -> [String] {
         .sorted()
 }
 
+// Moteur par défaut à l'ouverture (le picker "engine"). Le mode "Last used" est géré
+// en mémoire par le modèle (voir SimpleSearchModel.openingEngine) — aucun stockage direct.
 func defaultScrolledPrefix(widgetId: String) -> String? {
     guard shortcutsEnabled(widgetId: widgetId) else { return nil }
     let hidden = hiddenEngines(widgetId: widgetId)
-    let mode = WidgetDefaults.string(key: "defaultEngineMode", widgetId: widgetId, default: "None")
-    switch mode {
-    case "Last used":
-        let last = UserDefaults.standard.string(forKey: "simple-search.\(widgetId).lastUsedEngine")
-        return last.flatMap { hidden.contains($0) ? nil : $0 }
-    default:
-        let engineStr = WidgetDefaults.string(key: "engine", widgetId: widgetId, default: "Google (g)")
-        let prefix = prefixFromOption(engineStr)
-        return prefix.flatMap { hidden.contains($0) ? nil : $0 }
-    }
+    let engineStr = WidgetDefaults.string(key: "engine", widgetId: widgetId, default: "Google (g)")
+    let prefix = prefixFromOption(engineStr)
+    return prefix.flatMap { hidden.contains($0) ? nil : $0 }
 }
 
-func saveLastUsedEngine(_ prefix: String, widgetId: String) {
-    let mode = WidgetDefaults.string(key: "defaultEngineMode", widgetId: widgetId, default: "None")
-    guard mode == "Last used" else { return }
-    UserDefaults.standard.set(prefix, forKey: "simple-search.\(widgetId).lastUsedEngine")
-}
-
-private func prefixFromOption(_ option: String) -> String? {
+func prefixFromOption(_ option: String) -> String? {
     guard option.hasSuffix(")"), let openParen = option.lastIndex(of: "(") else { return nil }
     let prefix = String(option[option.index(after: openParen)..<option.index(before: option.endIndex)]).lowercased()
     return prefix.isEmpty ? nil : prefix

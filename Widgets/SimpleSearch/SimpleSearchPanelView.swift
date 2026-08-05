@@ -17,7 +17,6 @@ struct SimpleSearchPanelView: View {
     @State private var prefixJustRemoved = false
     @State private var scrolledPrefix: String? = nil
     @State private var scrollAccumulator: CGFloat = 0
-    @State private var scrollMonitor: Any? = nil
     @State private var clipboardSuggestion: String? = nil
     @ScaledMetric(relativeTo: .title3) private var fieldHeight: CGFloat = 26
 
@@ -184,6 +183,20 @@ struct SimpleSearchPanelView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .frame(width: 320)
+        // Scroll scopé au panneau (vue AppKit en overlay, ne réclame que le scroll),
+        // à la place d'un moniteur NSEvent global.
+        .overlay(ScrollWheelCatcher { deltaY in
+            guard shortcutsEnabled(widgetId: widgetId) else { return }
+            scrollAccumulator += deltaY
+            let threshold: CGFloat = 20
+            if scrollAccumulator > threshold {
+                scrollAccumulator = 0
+                cycleEngine(by: -1)
+            } else if scrollAccumulator < -threshold {
+                scrollAccumulator = 0
+                cycleEngine(by: 1)
+            }
+        })
         .animation(.easeOut(duration: 0.15), value: isSubmitting)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: activePrefix)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scrolledPrefix)
@@ -192,38 +205,14 @@ struct SimpleSearchPanelView: View {
             model?.scrolledPrefix = newValue
         }
         .onAppear {
-            if WidgetDefaults.bool(key: "clipboardSuggest", widgetId: widgetId, default: false),
-               let clip = NSPasteboard.general.string(forType: .string) {
-                let normalized = clip
-                    .components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                if !normalized.isEmpty {
-                    clipboardSuggestion = normalized
-                }
-            }
+            clipboardSuggestion = readClipboardSuggestion(widgetId: widgetId)
             model?.cancelScrolledReset()  // vraie ouverture (ou clignotement) : annule le reset en attente
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                // Ouvre sur le moteur scrollé au niveau de l'icône (compact), sinon le défaut.
-                scrolledPrefix = model?.scrolledPrefix ?? defaultScrolledPrefix(widgetId: widgetId)
-            }
-            scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [self] event in
-                guard shortcutsEnabled(widgetId: widgetId) else { return event }
-                scrollAccumulator += event.scrollingDeltaY
-                let threshold: CGFloat = 20
-                if scrollAccumulator > threshold {
-                    scrollAccumulator = 0
-                    cycleEngine(by: -1)
-                } else if scrollAccumulator < -threshold {
-                    scrollAccumulator = 0
-                    cycleEngine(by: 1)
-                }
-                return nil
+                // Moteur scrollé au niveau de l'icône (compact) sinon "Last used"/défaut.
+                scrolledPrefix = model?.scrolledPrefix ?? model?.openingEngine() ?? defaultScrolledPrefix(widgetId: widgetId)
             }
         }
         .onDisappear {
-            if let monitor = scrollMonitor { NSEvent.removeMonitor(monitor) }
             // Fermeture (vraie ou clignotement) : programme le retour au moteur par défaut.
             // Un clignotement rappellera onAppear → cancelScrolledReset avant les 500 ms.
             model?.scheduleScrolledReset()
@@ -264,7 +253,7 @@ struct SimpleSearchPanelView: View {
 
     private func submit() {
         if let prefix = activePrefix ?? scrolledPrefix {
-            saveLastUsedEngine(prefix, widgetId: widgetId)
+            model?.recordLastUsedEngine(prefix)
         }
         let staticPrefix: String? = {
             if let prefix = activePrefix { return isStaticLink ? prefix : nil }
@@ -407,5 +396,35 @@ private struct AutoFocusTextField: View {
         else { return }
         NSApp.postEvent(down, atStart: false)
         NSApp.postEvent(up, atStart: false)
+    }
+}
+
+/// Vue AppKit scopée au panneau qui capte le scroll SUR TOUTE sa surface (y compris
+/// au-dessus du champ texte). Posée en `.overlay()`, son `hitTest` ne réclame QUE les
+/// événements `scrollWheel` — les clics et la frappe passent à travers vers le contenu
+/// SwiftUI derrière. Elle n'accepte jamais le focus (n'interfère pas avec l'autofocus).
+private struct ScrollWheelCatcher: NSViewRepresentable {
+    let onScroll: (CGFloat) -> Void
+
+    func makeNSView(context: Context) -> WheelView { WheelView(onScroll: onScroll) }
+    func updateNSView(_ view: WheelView, context: Context) { view.onScroll = onScroll }
+
+    final class WheelView: NSView {
+        var onScroll: (CGFloat) -> Void
+        init(onScroll: @escaping (CGFloat) -> Void) {
+            self.onScroll = onScroll
+            super.init(frame: .zero)
+        }
+        required init?(coder: NSCoder) { nil }
+
+        override var acceptsFirstResponder: Bool { false }
+
+        // Ne réclame la vue QUE pour les événements de scroll ; tout le reste (clics,
+        // frappe) traverse vers le contenu derrière.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            NSApp.currentEvent?.type == .scrollWheel ? self : nil
+        }
+
+        override func scrollWheel(with event: NSEvent) { onScroll(event.scrollingDeltaY) }
     }
 }

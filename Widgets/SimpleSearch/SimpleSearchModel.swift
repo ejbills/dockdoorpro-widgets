@@ -22,6 +22,9 @@ final class SimpleSearchModel {
     @ObservationIgnored private var eraseTask: Task<Void, Never>?
     @ObservationIgnored private let keyboardCapture = SimpleSearchKeyboardCapture()
     @ObservationIgnored private let widgetId: String
+    // "Last used" gardé EN MÉMOIRE (pas de UserDefaults) : le modèle vit tant que
+    // DockDoor Pro tourne, donc le dernier moteur persiste sur toute la session d'usage.
+    @ObservationIgnored private var lastUsedEngine: String?
 
     init(widgetId: String) {
         self.widgetId = widgetId
@@ -29,6 +32,16 @@ final class SimpleSearchModel {
 
     func configure(size: CGSize, isVertical: Bool) {
         slotSpan = SimpleSearchLayout.span(size: size, isVertical: isVertical)
+    }
+
+    // Moteur sur lequel ouvrir : "Last used" (mémoire) si le réglage l'active, sinon défaut.
+    func openingEngine() -> String? {
+        let mode = WidgetDefaults.string(key: "defaultEngineMode", widgetId: widgetId, default: "Default")
+        if mode == "Last used", let last = lastUsedEngine,
+           shortcutsEnabled(widgetId: widgetId), !hiddenEngines(widgetId: widgetId).contains(last) {
+            return last
+        }
+        return defaultScrolledPrefix(widgetId: widgetId)
     }
 
     func cycleEngine(by step: Int) {
@@ -41,10 +54,10 @@ final class SimpleSearchModel {
         scrolledPrefix = keys[(idx + step + keys.count) % keys.count]
     }
 
-    // Le panneau single lit `scrolledPrefix` à l'ouverture. Pour respecter le réglage
-    // « Default engine on open », on remet le moteur au défaut quand le panneau se
-    // ferme VRAIMENT. Le clignotement du panneau (host) annule ce reset via onAppear,
-    // donc seule une vraie fermeture le déclenche.
+    // Le panneau single lit `scrolledPrefix` à l'ouverture. Quand il se ferme VRAIMENT,
+    // on remet le moteur d'ouverture (« Last used » si activé, sinon défaut). Le
+    // clignotement du panneau (host) annule ce reset via onAppear, donc seule une vraie
+    // fermeture le déclenche.
     @ObservationIgnored private var scrollResetTask: Task<Void, Never>?
 
     func cancelScrolledReset() {
@@ -57,7 +70,7 @@ final class SimpleSearchModel {
         scrollResetTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard let self, !Task.isCancelled else { return }
-            self.scrolledPrefix = defaultScrolledPrefix(widgetId: self.widgetId)
+            self.scrolledPrefix = self.openingEngine()  // respecte « Last used »
         }
     }
 
@@ -66,7 +79,7 @@ final class SimpleSearchModel {
         isErasing = false
         isActive = true
         prefixJustRemoved = false
-        scrolledPrefix = defaultScrolledPrefix(widgetId: widgetId)
+        scrolledPrefix = openingEngine()
         clipboardSuggestion = readClipboardSuggestion(widgetId: widgetId)
         text = ""
         displayText = ""
@@ -158,7 +171,7 @@ final class SimpleSearchModel {
 
     func recordLastUsedEngine(_ prefix: String?) {
         guard let prefix, !prefix.isEmpty else { return }
-        saveLastUsedEngine(prefix, widgetId: widgetId)
+        lastUsedEngine = prefix  // en mémoire uniquement
     }
 
     func clearPendingSubmission() {
