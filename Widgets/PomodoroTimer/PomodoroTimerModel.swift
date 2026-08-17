@@ -97,10 +97,10 @@ final class PomodoroTimerModel {
     private var endDate: Date?
     private var completionAlertGeneration = 0
     private var attentionGlowGeneration = 0
+    private var currentDayKey = ""
 
     init(widgetId: String) {
         self.widgetId = widgetId
-        migrateLegacySoundPreference()
         restore()
         let now = Date()
         normalizeDayIfNeeded(at: now)
@@ -363,9 +363,7 @@ final class PomodoroTimerModel {
     }
 
     private func normalizeDayIfNeeded(at date: Date) {
-        let today = Self.dayKey(for: date)
-        let stored = UserDefaults.standard.string(forKey: Self.dayKeyStorageKey(widgetId))
-        guard stored != today else { return }
+        guard currentDayKey != Self.dayKey(for: date) else { return }
         resetForNewDay(at: date)
     }
 
@@ -405,17 +403,15 @@ final class PomodoroTimerModel {
             cycleFocusCount: cycleFocusCount,
             dayKey: Self.dayKey(for: date)
         )
+        currentDayKey = state.dayKey
         guard let data = try? JSONEncoder().encode(state) else { return }
-        UserDefaults.standard.set(data, forKey: Self.stateStorageKey(widgetId))
-        UserDefaults.standard.set(
-            Self.dayKey(for: date),
-            forKey: Self.dayKeyStorageKey(widgetId)
-        )
+        WidgetDefaults.set(data, key: Self.stateKey, widgetId: widgetId)
     }
 
     private func restore() {
-        guard let data = UserDefaults.standard.data(
-            forKey: Self.stateStorageKey(widgetId)
+        guard let data = WidgetDefaults.data(
+            key: Self.stateKey,
+            widgetId: widgetId
         ),
         let saved = try? JSONDecoder().decode(
             PomodoroSavedState.self,
@@ -425,6 +421,7 @@ final class PomodoroTimerModel {
             return
         }
 
+        currentDayKey = saved.dayKey
         phase = saved.phase
         runState = saved.runState
         storedRemainingSeconds = max(0, saved.remainingSeconds)
@@ -524,20 +521,6 @@ final class PomodoroTimerModel {
         ) ?? .noticeable
     }
 
-    private func migrateLegacySoundPreference() {
-        let defaults = UserDefaults.standard
-        let legacyKey = "widget.\(widgetId).playSound"
-        guard defaults.object(forKey: legacyKey) != nil else { return }
-
-        if !defaults.bool(forKey: legacyKey) {
-            defaults.set(
-                PomodoroAlertStrength.off.rawValue,
-                forKey: "widget.\(widgetId).alertStrength"
-            )
-        }
-        defaults.removeObject(forKey: legacyKey)
-    }
-
     private func playSystemSound(named name: String) {
         if let sound = NSSound(named: NSSound.Name(name)) {
             sound.volume = 1
@@ -555,13 +538,7 @@ final class PomodoroTimerModel {
         (8.0, "Hero"),
     ]
 
-    private static func stateStorageKey(_ widgetId: String) -> String {
-        "widget.\(widgetId).timerState"
-    }
-
-    private static func dayKeyStorageKey(_ widgetId: String) -> String {
-        "widget.\(widgetId).timerDay"
-    }
+    private static let stateKey = "timerState"
 
     private static func dayKey(for date: Date) -> String {
         let components = Calendar.current.dateComponents(

@@ -48,4 +48,23 @@ public enum WidgetDefaults {
         }
         return rows
     }
+
+    /// Widget-owned runtime state (e.g. a timer's saved progress), stored as a
+    /// raw data blob under the same namespaced key scheme as settings. Unlike
+    /// settings — which the host writes and widgets only read — state keys are
+    /// written by the widget itself. Keep blobs small; this is `UserDefaults`,
+    /// not a database.
+    public static func data(key: String, widgetId: String) -> Data? {
+        UserDefaults.standard.data(forKey: fullKey(key, widgetId: widgetId))
+    }
+
+    /// Store widget-owned runtime state. Pass `nil` to remove the key.
+    public static func set(_ value: Data?, key: String, widgetId: String) {
+        let k = fullKey(key, widgetId: widgetId)
+        if let value {
+            UserDefaults.standard.set(value, forKey: k)
+        } else {
+            UserDefaults.standard.removeObject(forKey: k)
+        }
+    }
 }
