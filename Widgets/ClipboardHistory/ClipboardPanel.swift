@@ -34,6 +34,7 @@ private struct ClipboardPanelContent: View {
     @State private var searchText = ""
     @State private var isEditing = false
     @State private var editedText = ""
+    @State private var showCopyToast = false
     @FocusState private var isEditorFocused: Bool
     @State private var sidebarWidth: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
@@ -71,6 +72,40 @@ private struct ClipboardPanelContent: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: 620, height: 420)
+            .background(
+                KeyHandlingView(
+                    onUp: { selectPrevious() },
+                    onDown: { selectNext() },
+                    onReturn: { copySelected() },
+                    onEscape: {
+                        if searchActive { searchActive = false }
+                        else { dismiss() }
+                    },
+                    isEditing: isEditing
+                )
+            )
+            .overlay(alignment: .top) {
+                if showCopyToast {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Copied to Clipboard!")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.ultraThickMaterial, in: Capsule())
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.15), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                    ))
+                    .padding(.top, 14)
+                    .zIndex(100)
+                }
+            }
         }
     }
 
@@ -170,26 +205,64 @@ private struct ClipboardPanelContent: View {
 
                 Spacer()
 
-                ActionButton(icon: "xmark.circle", style: .destructive) {
+                ActionButton(icon: "trash.slash", style: .destructive) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         manager.clearAllItems()
-                        selected = nil
+                        selected = manager.pinnedItems.first
                     }
                 }
-                .opacity(manager.clipboardItems.isEmpty ? 0.3 : 1)
-                .disabled(manager.clipboardItems.isEmpty)
-                .help("Clear unpinned history")
+                .opacity(manager.unpinnedItems.isEmpty ? 0.3 : 1)
+                .disabled(manager.unpinnedItems.isEmpty)
+                .help("Remove all non-pinned items (\(manager.unpinnedItems.count))")
             }
             .padding(.horizontal, 12)
             .frame(height: 52)
         }
     }
 
+    private func selectPrevious() {
+        let items = filtered
+        guard !items.isEmpty else { return }
+        if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
+            if idx > 0 {
+                selected = items[idx - 1]
+            } else {
+                selected = items.last
+            }
+        } else {
+            selected = items.first
+        }
+    }
+
+    private func selectNext() {
+        let items = filtered
+        guard !items.isEmpty else { return }
+        if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
+            if idx < items.count - 1 {
+                selected = items[idx + 1]
+            } else {
+                selected = items.first
+            }
+        } else {
+            selected = items.first
+        }
+    }
+
+    private func copySelected() {
+        guard let item = selected ?? filtered.first else { return }
+        manager.copyItemToClipboard(item)
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            showCopyToast = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            dismiss()
+        }
+    }
+
     private func handleTap(_ item: ClipboardItem) {
         if selected?.id == item.id {
             if !isEditing {
-                manager.copyItemToClipboard(item)
-                dismiss()
+                copySelected()
             }
         } else {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
@@ -510,6 +583,77 @@ private struct ClipboardPanelContent: View {
                     .help("Edit URL")
                 }
 
+                if currentSelectedText(for: item) != nil {
+                    Menu {
+                        Section("Transform Case") {
+                            Button("UPPERCASE") { applyTransformation(to: item) { DeveloperTextTools.toUpperCase($0) } }
+                            Button("lowercase") { applyTransformation(to: item) { DeveloperTextTools.toLowerCase($0) } }
+                            Button("camelCase") { applyTransformation(to: item) { DeveloperTextTools.toCamelCase($0) } }
+                            Button("snake_case") { applyTransformation(to: item) { DeveloperTextTools.toSnakeCase($0) } }
+                            Button("kebab-case") { applyTransformation(to: item) { DeveloperTextTools.toKebabCase($0) } }
+                        }
+
+                        Section("Developer Utilities") {
+                            Button("Clean Plain Text (Strip Quotes & Trim)") {
+                                applyTransformation(to: item) { DeveloperTextTools.cleanPlainText($0) }
+                            }
+
+                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isJSON(txt) {
+                                Button("Beautify JSON") {
+                                    if let formatted = DeveloperTextTools.beautifyJSON(txt) {
+                                        applyTransformedString(to: item, newText: formatted)
+                                    }
+                                }
+                                Button("Minify JSON") {
+                                    if let formatted = DeveloperTextTools.minifyJSON(txt) {
+                                        applyTransformedString(to: item, newText: formatted)
+                                    }
+                                }
+                            }
+
+                            Button("Base64 Encode") {
+                                if let txt = currentSelectedText(for: item) {
+                                    applyTransformedString(to: item, newText: DeveloperTextTools.encodeBase64(txt))
+                                }
+                            }
+
+                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isBase64(txt) {
+                                Button("Base64 Decode") {
+                                    if let decoded = DeveloperTextTools.decodeBase64(txt) {
+                                        applyTransformedString(to: item, newText: decoded)
+                                    }
+                                }
+                            }
+
+                            Button("URL Encode") {
+                                if let txt = currentSelectedText(for: item), let enc = DeveloperTextTools.encodeURL(txt) {
+                                    applyTransformedString(to: item, newText: enc)
+                                }
+                            }
+
+                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isURLEncoded(txt) {
+                                Button("URL Decode") {
+                                    if let dec = DeveloperTextTools.decodeURL(txt) {
+                                        applyTransformedString(to: item, newText: dec)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "wand.and.stars")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(Color.secondary)
+                            .frame(width: 36, height: 34)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.primary.opacity(0.06))
+                            )
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Developer & Text Tools (Case, JSON, Base64, URL)")
+                }
+
                 Spacer()
 
                 if case let .fileURL(url) = item.data {
@@ -527,13 +671,38 @@ private struct ClipboardPanelContent: View {
                 }
 
                 ActionButton(icon: "doc.on.doc", style: .accent) {
-                    manager.copyItemToClipboard(item)
-                    dismiss()
+                    copySelected()
                 }
                 .help("Copy to Clipboard")
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
+        }
+    }
+
+    private func currentSelectedText(for item: ClipboardItem) -> String? {
+        switch item.data {
+        case .text(let t): return t
+        case .url(let u): return u.absoluteString
+        default: return nil
+        }
+    }
+
+    private func applyTransformation(to item: ClipboardItem, transform: (String) -> String) {
+        guard let text = currentSelectedText(for: item) else { return }
+        applyTransformedString(to: item, newText: transform(text))
+    }
+
+    private func applyTransformedString(to item: ClipboardItem, newText: String) {
+        if let updated = manager.updateItemText(item, newText: newText) {
+            selected = updated
+            manager.copyItemToClipboard(updated)
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                showCopyToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                withAnimation { showCopyToast = false }
+            }
         }
     }
 }
@@ -946,5 +1115,79 @@ private class ResizeCursorNSView: NSView {
         addCursorRect(bounds, cursor: .resizeLeftRight)
     }
 }
+
+// MARK: - Global Key Handling for Panel Navigation
+
+private struct KeyHandlingView: NSViewRepresentable {
+    let onUp: () -> Void
+    let onDown: () -> Void
+    let onReturn: () -> Void
+    let onEscape: () -> Void
+    let isEditing: Bool
+
+    func makeNSView(context: Context) -> KeyHandlingNSView {
+        let v = KeyHandlingNSView()
+        v.onUp = onUp
+        v.onDown = onDown
+        v.onReturn = onReturn
+        v.onEscape = onEscape
+        v.isEditing = isEditing
+        return v
+    }
+
+    func updateNSView(_ nsView: KeyHandlingNSView, context: Context) {
+        nsView.onUp = onUp
+        nsView.onDown = onDown
+        nsView.onReturn = onReturn
+        nsView.onEscape = onEscape
+        nsView.isEditing = isEditing
+    }
+}
+
+private class KeyHandlingNSView: NSView {
+    var onUp: (() -> Void)?
+    var onDown: (() -> Void)?
+    var onReturn: (() -> Void)?
+    var onEscape: (() -> Void)?
+    var isEditing: Bool = false
+    private var monitor: Any?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil && monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self = self else { return event }
+                if self.isEditing { return event }
+
+                switch event.keyCode {
+                case 126: // Up arrow
+                    self.onUp?()
+                    return nil
+                case 125: // Down arrow
+                    self.onDown?()
+                    return nil
+                case 36: // Return key
+                    self.onReturn?()
+                    return nil
+                case 53: // Escape
+                    self.onEscape?()
+                    return nil
+                default:
+                    return event
+                }
+            }
+        } else if window == nil, let m = monitor {
+            NSEvent.removeMonitor(m)
+            monitor = nil
+        }
+    }
+
+    deinit {
+        if let m = monitor {
+            NSEvent.removeMonitor(m)
+        }
+    }
+}
+
 
 
