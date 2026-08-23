@@ -2,7 +2,7 @@ import DockDoorWidgetSDK
 import SwiftUI
 import AppKit
 
-
+@objc(ClipboardPlugin)
 final class ClipboardPlugin: WidgetPlugin, DockDoorWidgetProvider {
     var id: String { "clipboard-history" }
     var name: String { "Clipboard" }
@@ -40,7 +40,6 @@ final class ClipboardPlugin: WidgetPlugin, DockDoorWidgetProvider {
         )
     }
 }
-
 
 final class PanelWindowContext: @unchecked Sendable {
     weak var window: NSWindow?

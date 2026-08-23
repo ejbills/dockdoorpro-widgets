@@ -1,13 +1,8 @@
 import AppKit
 import SwiftUI
-import PDFKit
-import AVKit
+import DockDoorWidgetSDK
 
-private extension Color {
-    static let accentMuted: Color = {
-        Color(NSColor.controlAccentColor.blended(withFraction: 0.22, of: .black) ?? .controlAccentColor)
-    }()
-}
+// MARK: - Main Panel Container
 
 struct ClipboardPanelView: View {
     var manager: ClipboardManagerState
@@ -23,6 +18,8 @@ struct ClipboardPanelView: View {
             }
     }
 }
+
+// MARK: - Panel Content
 
 private struct ClipboardPanelContent: View {
     var manager: ClipboardManagerState
@@ -114,6 +111,7 @@ private struct ClipboardPanelContent: View {
         }
     }
 
+    // MARK: - Sidebar
 
     private var sidebar: some View {
         VStack(spacing: 0) {
@@ -198,43 +196,49 @@ private struct ClipboardPanelContent: View {
                 .compositingGroup()
             }
 
-            HStack(spacing: 8) {
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                        manager.togglePersistence()
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: manager.isPersistenceEnabled ? "internaldrive.fill" : "memorychip")
-                            .font(.system(size: 10))
-                        Text(manager.isPersistenceEnabled ? "Persist" : "RAM Only")
-                            .font(.system(size: 10, weight: .medium))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(manager.isPersistenceEnabled ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
-                    .foregroundStyle(manager.isPersistenceEnabled ? Color.accentColor : Color.secondary)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help(manager.isPersistenceEnabled ? "Clipboard history survives restarts (Click to switch to RAM only)" : "Clipboard history is memory only (Click to enable disk persistence)")
-
-                Spacer()
-
-                ActionButton(icon: "trash.slash", style: .destructive) {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                        manager.clearAllItems()
-                        selected = manager.pinnedItems.first
-                    }
-                }
-                .opacity(manager.unpinnedItems.isEmpty ? 0.3 : 1)
-                .disabled(manager.unpinnedItems.isEmpty)
-                .help("Remove all non-pinned items (\(manager.unpinnedItems.count))")
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 52)
+            sidebarFooter
         }
     }
+
+    private var sidebarFooter: some View {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.togglePersistence()
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: manager.isPersistenceEnabled ? "internaldrive.fill" : "memorychip")
+                        .font(.system(size: 10))
+                    Text(manager.isPersistenceEnabled ? "Persist" : "RAM Only")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(manager.isPersistenceEnabled ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                .foregroundStyle(manager.isPersistenceEnabled ? Color.accentColor : Color.secondary)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(manager.isPersistenceEnabled ? "Clipboard history survives restarts (Click to switch to RAM only)" : "Clipboard history is memory only (Click to enable disk persistence)")
+
+            Spacer()
+
+            ActionButton(icon: "trash.slash", style: .destructive) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.clearAllItems()
+                    selected = manager.pinnedItems.first
+                }
+            }
+            .opacity(manager.unpinnedItems.isEmpty ? 0.3 : 1)
+            .disabled(manager.unpinnedItems.isEmpty)
+            .help("Remove all non-pinned items (\(manager.unpinnedItems.count))")
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 52)
+    }
+
+    // MARK: - Navigation & Tap Handlers
 
     private func selectPrevious() {
         let items = filtered
@@ -283,7 +287,6 @@ private struct ClipboardPanelContent: View {
         }
     }
 
-
     private func sectionHeader(pinned: Bool) -> some View {
         HStack(spacing: 4) {
             if pinned {
@@ -301,7 +304,6 @@ private struct ClipboardPanelContent: View {
         .padding(.top, 6)
         .padding(.bottom, 2)
     }
-
 
     private var emptyState: some View {
         VStack(spacing: 12) {
@@ -324,6 +326,7 @@ private struct ClipboardPanelContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Preview Pane
 
     private var previewPane: some View {
         VStack(spacing: 0) {
@@ -364,7 +367,6 @@ private struct ClipboardPanelContent: View {
             }
         }
     }
-
 
     @ViewBuilder
     private func previewContent(_ item: ClipboardItem) -> some View {
@@ -461,7 +463,6 @@ private struct ClipboardPanelContent: View {
         )
     }
 
-
     private static let textExtensions: Set<String> = [
         "txt","md","swift","py","js","ts","jsx","tsx","html","css","json","xml",
         "yaml","yml","toml","sh","rb","php","go","rs","kt","java","c","cpp","h","m"
@@ -517,6 +518,7 @@ private struct ClipboardPanelContent: View {
         .padding(16)
     }
 
+    // MARK: - Action Bar
 
     @ViewBuilder
     private func actionBar(_ item: ClipboardItem) -> some View {
@@ -610,91 +612,7 @@ private struct ClipboardPanelContent: View {
                 }
 
                 if currentSelectedText(for: item) != nil {
-                    Menu {
-                        if item.isModified {
-                            Section("History") {
-                                Button("Restore Original Text") {
-                                    if let restored = manager.restoreItemToOriginal(item) {
-                                        selected = restored
-                                        manager.copyItemToClipboard(restored)
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                            showCopyToast = true
-                                        }
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                            withAnimation { showCopyToast = false }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Section("Transform Case") {
-                            Button("UPPERCASE") { applyTransformation(to: item) { DeveloperTextTools.toUpperCase($0) } }
-                            Button("lowercase") { applyTransformation(to: item) { DeveloperTextTools.toLowerCase($0) } }
-                            Button("camelCase") { applyTransformation(to: item) { DeveloperTextTools.toCamelCase($0) } }
-                            Button("snake_case") { applyTransformation(to: item) { DeveloperTextTools.toSnakeCase($0) } }
-                            Button("kebab-case") { applyTransformation(to: item) { DeveloperTextTools.toKebabCase($0) } }
-                        }
-
-                        Section("Developer Utilities") {
-                            Button("Clean Plain Text (Strip Quotes & Trim)") {
-                                applyTransformation(to: item) { DeveloperTextTools.cleanPlainText($0) }
-                            }
-
-                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isJSON(txt) {
-                                Button("Beautify JSON") {
-                                    if let formatted = DeveloperTextTools.beautifyJSON(txt) {
-                                        applyTransformedString(to: item, newText: formatted)
-                                    }
-                                }
-                                Button("Minify JSON") {
-                                    if let formatted = DeveloperTextTools.minifyJSON(txt) {
-                                        applyTransformedString(to: item, newText: formatted)
-                                    }
-                                }
-                            }
-
-                            Button("Base64 Encode") {
-                                if let txt = currentSelectedText(for: item) {
-                                    applyTransformedString(to: item, newText: DeveloperTextTools.encodeBase64(txt))
-                                }
-                            }
-
-                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isBase64(txt) {
-                                Button("Base64 Decode") {
-                                    if let decoded = DeveloperTextTools.decodeBase64(txt) {
-                                        applyTransformedString(to: item, newText: decoded)
-                                    }
-                                }
-                            }
-
-                            Button("URL Encode") {
-                                if let txt = currentSelectedText(for: item), let enc = DeveloperTextTools.encodeURL(txt) {
-                                    applyTransformedString(to: item, newText: enc)
-                                }
-                            }
-
-                            if let txt = currentSelectedText(for: item), DeveloperTextTools.isURLEncoded(txt) {
-                                Button("URL Decode") {
-                                    if let dec = DeveloperTextTools.decodeURL(txt) {
-                                        applyTransformedString(to: item, newText: dec)
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "wand.and.stars")
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(Color.secondary)
-                            .frame(width: 36, height: 34)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.primary.opacity(0.06))
-                            )
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("Developer & Text Tools (Case, JSON, Base64, URL)")
+                    toolsMenu(for: item)
                 }
 
                 Spacer()
@@ -723,6 +641,94 @@ private struct ClipboardPanelContent: View {
         }
     }
 
+    private func toolsMenu(for item: ClipboardItem) -> some View {
+        Menu {
+            if item.isModified {
+                Section("History") {
+                    Button("Restore Original Text") {
+                        if let restored = manager.restoreItemToOriginal(item) {
+                            selected = restored
+                            manager.copyItemToClipboard(restored)
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                showCopyToast = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                                withAnimation { showCopyToast = false }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Transform Case") {
+                Button("UPPERCASE") { applyTransformation(to: item) { DeveloperTextTools.toUpperCase($0) } }
+                Button("lowercase") { applyTransformation(to: item) { DeveloperTextTools.toLowerCase($0) } }
+                Button("camelCase") { applyTransformation(to: item) { DeveloperTextTools.toCamelCase($0) } }
+                Button("snake_case") { applyTransformation(to: item) { DeveloperTextTools.toSnakeCase($0) } }
+                Button("kebab-case") { applyTransformation(to: item) { DeveloperTextTools.toKebabCase($0) } }
+            }
+
+            Section("Developer Utilities") {
+                Button("Clean Plain Text (Strip Quotes & Trim)") {
+                    applyTransformation(to: item) { DeveloperTextTools.cleanPlainText($0) }
+                }
+
+                if let txt = currentSelectedText(for: item), DeveloperTextTools.isJSON(txt) {
+                    Button("Beautify JSON") {
+                        if let formatted = DeveloperTextTools.beautifyJSON(txt) {
+                            applyTransformedString(to: item, newText: formatted)
+                        }
+                    }
+                    Button("Minify JSON") {
+                        if let formatted = DeveloperTextTools.minifyJSON(txt) {
+                            applyTransformedString(to: item, newText: formatted)
+                        }
+                    }
+                }
+
+                Button("Base64 Encode") {
+                    if let txt = currentSelectedText(for: item) {
+                        applyTransformedString(to: item, newText: DeveloperTextTools.encodeBase64(txt))
+                    }
+                }
+
+                if let txt = currentSelectedText(for: item), DeveloperTextTools.isBase64(txt) {
+                    Button("Base64 Decode") {
+                        if let decoded = DeveloperTextTools.decodeBase64(txt) {
+                            applyTransformedString(to: item, newText: decoded)
+                        }
+                    }
+                }
+
+                Button("URL Encode") {
+                    if let txt = currentSelectedText(for: item), let enc = DeveloperTextTools.encodeURL(txt) {
+                        applyTransformedString(to: item, newText: enc)
+                    }
+                }
+
+                if let txt = currentSelectedText(for: item), DeveloperTextTools.isURLEncoded(txt) {
+                    Button("URL Decode") {
+                        if let dec = DeveloperTextTools.decodeURL(txt) {
+                            applyTransformedString(to: item, newText: dec)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "wand.and.stars")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color.secondary)
+                .frame(width: 36, height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.primary.opacity(0.06))
+                )
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Developer & Text Tools (Case, JSON, Base64, URL)")
+    }
+
     private func currentSelectedText(for item: ClipboardItem) -> String? {
         switch item.data {
         case .text(let t): return t
@@ -749,496 +755,3 @@ private struct ClipboardPanelContent: View {
         }
     }
 }
-
-// MARK: - Segmented filter control
-
-private struct SegmentedFilterControl: View {
-    @Binding var activeFilter: ClipboardFilter
-
-    private let filters = ClipboardFilter.allCases
-
-    var body: some View {
-        GeometryReader { geo in
-            let count = CGFloat(filters.count)
-            let index = CGFloat(filters.firstIndex(of: activeFilter) ?? 0)
-            let segmentWidth = geo.size.width / count
-            let segmentHeight = geo.size.height
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.primary.opacity(0.08))
-
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(Color(NSColor.windowBackgroundColor))
-                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    .frame(width: segmentWidth, height: segmentHeight)
-                    .offset(x: index * segmentWidth)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.78), value: activeFilter)
-
-                HStack(spacing: 0) {
-                    ForEach(filters, id: \.self) { filter in
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
-                                activeFilter = filter
-                            }
-                        } label: {
-                            Image(systemName: filter.icon)
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(activeFilter == filter ? .primary : .secondary)
-                                .frame(width: segmentWidth, height: segmentHeight)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-        .frame(height: 32)
-    }
-}
-
-// MARK: - Search controls
-
-private struct SearchButton: View {
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(isHovered ? Color.accentColor : Color.secondary)
-                .frame(width: 30, height: 30)
-                .background(
-                    Circle()
-                        .fill(isHovered ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
-                )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.spring(response: 0.28, dampingFraction: 0.78), value: isHovered)
-    }
-}
-
-private struct SearchField: View {
-    @Binding var text: String
-    @Binding var isActive: Bool
-
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            TextField("Search...", text: $text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .focused($isFocused)
-
-            Button {
-                if text.isEmpty {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
-                        isActive = false
-                    }
-                } else {
-                    text = ""
-                }
-            } label: {
-                Image(systemName: text.isEmpty ? "xmark" : "xmark.circle.fill")
-                    .font(.system(size: text.isEmpty ? 10 : 12, weight: text.isEmpty ? .semibold : .regular))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 20)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
-        .background(RoundedRectangle(cornerRadius: 20).fill(Color.primary.opacity(0.08)))
-        .frame(maxWidth: .infinity)
-        .onAppear {
-            DispatchQueue.main.async { isFocused = true }
-        }
-        .onExitCommand {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
-                if text.isEmpty {
-                    isActive = false
-                } else {
-                    text = ""
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Item row
-
-private struct ItemRow: View {
-    let item: ClipboardItem
-    let isSelected: Bool
-    let onTap: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                thumbnail
-                    .frame(width: 36, height: 36)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    if !item.displayText.isEmpty {
-                        Text(item.displayText)
-                            .font(.callout.weight(.medium))
-                            .foregroundStyle(isSelected ? .white : .primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    Text(item.typeLabel)
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
-                }
-
-                Spacer(minLength: 0)
-
-                if item.isModified {
-                    Image(systemName: "pencil.line")
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.accentColor)
-                        .help("Modified (Click 'Restore' to revert)")
-                }
-
-                if item.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : Color.accentColor)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        isSelected
-                            ? Color.accentMuted
-                            : isHovered
-                                ? Color.primary.opacity(0.07)
-                                : Color.clear
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 20))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-    }
-
-    @ViewBuilder
-    private var thumbnail: some View {
-        switch item.data {
-        case let .image(data):
-            if let nsImage = NSImage(data: data) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            } else {
-                iconBadge(item.typeIcon, color: .secondary)
-            }
-        case .text:
-            if let color = item.cachedColor {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 0.5)
-                    )
-            } else {
-                iconBadge(item.typeIcon, color: .blue)
-            }
-        case .url:
-            iconBadge("link", color: .blue)
-        case .fileURL:
-            iconBadge("doc.fill", color: .orange)
-        }
-    }
-
-    private func iconBadge(_ symbol: String, color: Color) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(color.opacity(isSelected ? 0.4 : 0.15))
-            Image(systemName: symbol)
-                .font(.callout)
-                .foregroundStyle(isSelected ? .white : color)
-        }
-    }
-}
-
-// MARK: - Action button
-
-private struct ActionButton: View {
-    let icon: String
-    let style: Style
-    let action: () -> Void
-
-    enum Style { case normal, accent, destructive }
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(foregroundColor)
-                .frame(width: 36, height: 34)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(backgroundColor)
-                )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-    }
-
-    private var foregroundColor: Color {
-        switch style {
-        case .accent:      isHovered ? .white : .accentMuted
-        case .destructive: isHovered ? .red : .secondary
-        case .normal:      isHovered ? .accentColor : .secondary
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch style {
-        case .accent:      isHovered ? .accentMuted : Color.accentMuted.opacity(0.15)
-        case .destructive: isHovered ? Color.red.opacity(0.15) : Color.primary.opacity(0.06)
-        case .normal:      isHovered ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)
-        }
-    }
-}
-
-// MARK: - PDF Preview
-
-private struct PDFPreview: NSViewRepresentable {
-    let url: URL
-
-    func makeNSView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.document = PDFDocument(url: url)
-        return view
-    }
-
-    func updateNSView(_ view: PDFView, context: Context) {}
-}
-
-// MARK: - Text file preview
-
-private struct TextFilePreview: View {
-    let url: URL
-    @State private var content: String?
-
-    var body: some View {
-        Group {
-            if let content {
-                ScrollView {
-                    Text(content)
-                        .font(.caption.monospaced())
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                }
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .onAppear {
-            if let data = try? Data(contentsOf: url, options: .mappedIfSafe),
-               data.count < 200_000,
-               let text = String(data: data, encoding: .utf8) {
-                content = text
-            } else {
-                content = ""
-            }
-        }
-    }
-}
-
-// MARK: - NSPanel Sentinel
-
-struct NSPanelSentinel: NSViewRepresentable {
-    let context: PanelWindowContext
-
-    func makeNSView(context ctx: Context) -> SentinelView {
-        let view = SentinelView(context: context)
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }
-
-    func updateNSView(_ view: SentinelView, context ctx: Context) {}
-
-    class SentinelView: NSView {
-        let context: PanelWindowContext
-        init(context: PanelWindowContext) {
-            self.context = context
-            super.init(frame: .zero)
-        }
-        required init?(coder: NSCoder) { fatalError() }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            context.window = window
-        }
-    }
-}
-
-// MARK: - Resizable Split Divider
-
-private struct ResizableSplitDivider: View {
-    @Binding var sidebarWidth: CGFloat
-    let minWidth: CGFloat
-    let maxWidth: CGFloat
-
-    @State private var isHovered = false
-    @State private var isDragging = false
-    @State private var dragInitialWidth: CGFloat = 0
-
-    var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color(NSColor.separatorColor))
-                .frame(width: 1)
-
-            Rectangle()
-                .fill(isHovered || isDragging ? Color.accentColor.opacity(0.35) : Color.clear)
-                .frame(width: 8)
-
-            ResizeCursorView()
-                .frame(width: 8)
-        }
-        .frame(width: 8)
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovered = hovering
-        }
-        .gesture(
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    if !isDragging {
-                        isDragging = true
-                        dragInitialWidth = sidebarWidth
-                    }
-                    let newWidth = dragInitialWidth + value.translation.width
-                    sidebarWidth = min(max(newWidth, minWidth), maxWidth)
-                }
-                .onEnded { _ in
-                    isDragging = false
-                    UserDefaults.standard.set(Double(sidebarWidth), forKey: "ClipboardHistory_sidebarWidth")
-                }
-        )
-        .onTapGesture(count: 2) {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                sidebarWidth = 280
-                UserDefaults.standard.set(280.0, forKey: "ClipboardHistory_sidebarWidth")
-            }
-        }
-        .help("Drag to resize sidebar (Double-click to reset)")
-    }
-}
-
-// MARK: - Native macOS Cursor Rect View
-
-private struct ResizeCursorView: NSViewRepresentable {
-    func makeNSView(context: Context) -> ResizeCursorNSView {
-        ResizeCursorNSView()
-    }
-
-    func updateNSView(_ nsView: ResizeCursorNSView, context: Context) {}
-}
-
-private class ResizeCursorNSView: NSView {
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: .resizeLeftRight)
-    }
-}
-
-// MARK: - Global Key Handling for Panel Navigation
-
-private struct KeyHandlingView: NSViewRepresentable {
-    let onUp: () -> Void
-    let onDown: () -> Void
-    let onReturn: () -> Void
-    let onEscape: () -> Void
-    let isEditing: Bool
-
-    func makeNSView(context: Context) -> KeyHandlingNSView {
-        let v = KeyHandlingNSView()
-        v.onUp = onUp
-        v.onDown = onDown
-        v.onReturn = onReturn
-        v.onEscape = onEscape
-        v.isEditing = isEditing
-        return v
-    }
-
-    func updateNSView(_ nsView: KeyHandlingNSView, context: Context) {
-        nsView.onUp = onUp
-        nsView.onDown = onDown
-        nsView.onReturn = onReturn
-        nsView.onEscape = onEscape
-        nsView.isEditing = isEditing
-    }
-}
-
-private class KeyHandlingNSView: NSView {
-    var onUp: (() -> Void)?
-    var onDown: (() -> Void)?
-    var onReturn: (() -> Void)?
-    var onEscape: (() -> Void)?
-    var isEditing: Bool = false
-    private var monitor: Any?
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if let win = window, monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak win] event in
-                guard let self = self, let panelWindow = win else { return event }
-                guard event.window == panelWindow else { return event }
-                if self.isEditing { return event }
-
-                switch event.keyCode {
-                case 126: // Up arrow
-                    self.onUp?()
-                    return nil
-                case 125: // Down arrow
-                    self.onDown?()
-                    return nil
-                case 36: // Return key
-                    self.onReturn?()
-                    return nil
-                case 53: // Escape
-                    self.onEscape?()
-                    return nil
-                default:
-                    return event
-                }
-            }
-        } else if window == nil, let m = monitor {
-            NSEvent.removeMonitor(m)
-            monitor = nil
-        }
-    }
-
-    deinit {
-        if let m = monitor {
-            NSEvent.removeMonitor(m)
-        }
-    }
-}
-
-
-

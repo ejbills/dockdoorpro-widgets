@@ -6,5 +6,15 @@
     "iconSymbol": "list.bullet.clipboard",
     "orientations": ["horizontal", "vertical"],
     "principalClass": "ClipboardPlugin",
-    "sources": ["ClipboardPlugin.swift", "ClipboardManager.swift", "ClipboardPanel.swift", "ClipboardWidgetView.swift"]
+    "sources": [
+        "ClipboardPlugin.swift",
+        "ClipboardModels.swift",
+        "ClipboardStorage.swift",
+        "DeveloperTextTools.swift",
+        "ClipboardAppKitViews.swift",
+        "ClipboardUIComponents.swift",
+        "ClipboardManager.swift",
+        "ClipboardPanel.swift",
+        "ClipboardWidgetView.swift"
+    ]
 }

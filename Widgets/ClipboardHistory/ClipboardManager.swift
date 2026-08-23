@@ -1,436 +1,40 @@
 import AppKit
 import SwiftUI
-import os.log
+import os
 
-private let logger = Logger(subsystem: "com.ejbills.DockDoorPro", category: "ClipboardWidget")
-
-enum ClipboardDataType {
-    case text(String)
-    case image(Data)
-    case url(URL)
-    case fileURL(URL)
-}
-
-enum TextSubtype: Sendable {
-    case email, phone, date, code, url, text
-
-    var icon: String {
-        switch self {
-        case .email: "envelope"
-        case .phone: "phone"
-        case .date:  "calendar"
-        case .code:  "chevron.left.forwardslash.chevron.right"
-        case .url:   "globe.americas.fill"
-        case .text:  "doc.plaintext"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .email: "Email"
-        case .phone: "Phone"
-        case .date:  "Date"
-        case .code:  "Code"
-        case .url:   "Link"
-        case .text:  "Text"
-        }
-    }
-}
-
-struct ClipboardItem: Identifiable, Hashable, Sendable {
-    let id: UUID
-    let data: ClipboardDataType
-    let timestamp: Date
-    let source: String
-    var isPinned: Bool
-    let originalText: String?
-
-    let cachedColor: Color?
-    let cachedSubtype: TextSubtype?
-
-    var isModified: Bool {
-        guard let originalText else { return false }
-        switch data {
-        case .text(let t): return t != originalText
-        case .url(let u): return u.absoluteString != originalText
-        default: return false
-        }
-    }
-
-    init(id: UUID = UUID(), data: ClipboardDataType, timestamp: Date, source: String, isPinned: Bool = false, originalText: String? = nil) {
-        self.id = id
-        self.data = data
-        self.timestamp = timestamp
-        self.source = source
-        self.isPinned = isPinned
-        self.originalText = originalText
-        if case .text(let t) = data {
-            self.cachedColor = Self.detectColor(in: t)
-            self.cachedSubtype = Self.detectSubtype(in: t)
-        } else {
-            self.cachedColor = nil
-            self.cachedSubtype = nil
-        }
-    }
-
-    static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
-
-    var displayText: String {
-        switch data {
-        case let .text(text):    text.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .image:             ""
-        case let .url(url):      url.absoluteString
-        case let .fileURL(url):  url.lastPathComponent
-        }
-    }
-
-    var typeIcon: String {
-        cachedSubtype?.icon ?? {
-            switch data {
-            case .text:    "doc.text"
-            case .image:   "photo"
-            case .url:     "link"
-            case .fileURL: "doc"
-            }
-        }()
-    }
-
-    var typeLabel: String {
-        cachedSubtype?.label ?? {
-            switch data {
-            case .text:              "Text"
-            case .image:             "Image"
-            case .url:               "Link"
-            case let .fileURL(url):  url.pathExtension.uppercased()
-            }
-        }()
-    }
-
-    // Cached NSRegularExpression patterns
-    private static let regexHex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
-    }()
-    private static let regexRGB: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*\\)$", options: .caseInsensitive)
-    }()
-    private static let regexHSL: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^hsl\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})%\\s*,\\s*(\\d{1,3})%\\s*\\)$", options: .caseInsensitive)
-    }()
-    private static let regexEmail: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$")
-    }()
-    private static let regexPhone: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^[\\+]?[\\d\\s\\-().]{7,}$")
-    }()
-    private static let regexDate: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "^\\d{1,4}[/\\-.]\\d{1,2}[/\\-.]\\d{1,4}$")
-    }()
-    private static let regexCode: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "[{}<>\\[\\];=]|\\bfunc\\b|\\bvar\\b|\\blet\\b|\\bclass\\b|\\bimport\\b|\\breturn\\b|\\bdef\\b|\\bfunction\\b")
-    }()
-
-    static func detectColor(in text: String) -> Color? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= 40 else { return nil }
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-
-        if let regexHex, regexHex.firstMatch(in: trimmed, range: range) != nil {
-            var hex = trimmed.dropFirst()
-            if hex.count == 3 { hex = Substring(hex.map { "\($0)\($0)" }.joined()) }
-            let scanner = Scanner(string: String(hex))
-            var rgb: UInt64 = 0
-            if scanner.scanHexInt64(&rgb) {
-                return Color(
-                    red:   Double((rgb >> 16) & 0xFF) / 255,
-                    green: Double((rgb >> 8)  & 0xFF) / 255,
-                    blue:  Double( rgb        & 0xFF) / 255
-                )
-            }
-        }
-
-        if let regexRGB, regexRGB.firstMatch(in: trimmed, range: range) != nil {
-            let nums = trimmed.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap(Int.init)
-            if nums.count >= 3 {
-                let r = min(max(Double(nums[0]), 0), 255) / 255
-                let g = min(max(Double(nums[1]), 0), 255) / 255
-                let b = min(max(Double(nums[2]), 0), 255) / 255
-                return Color(red: r, green: g, blue: b)
-            }
-        }
-
-        if let regexHSL, regexHSL.firstMatch(in: trimmed, range: range) != nil {
-            let nums = trimmed.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap(Int.init)
-            if nums.count >= 3 {
-                let h = min(max(Double(nums[0]), 0), 360) / 360
-                let s = min(max(Double(nums[1]), 0), 100) / 100
-                let l = min(max(Double(nums[2]), 0), 100) / 100
-                return Color(hue: h, saturation: s, brightness: l)
-            }
-        }
-
-        return nil
-    }
-
-    static func detectSubtype(in text: String) -> TextSubtype {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return .text }
-
-        if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")),
-           let url = URL(string: trimmed), url.scheme != nil, url.host != nil {
-            return .url
-        }
-
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        if let regexEmail, regexEmail.firstMatch(in: trimmed, range: range) != nil { return .email }
-        if let regexPhone, regexPhone.firstMatch(in: trimmed, range: range) != nil { return .phone }
-        if let regexDate, regexDate.firstMatch(in: trimmed, range: range) != nil { return .date }
-        if trimmed.count > 3, let regexCode, regexCode.firstMatch(in: trimmed, range: range) != nil { return .code }
-
-        return .text
-    }
-}
-
-enum ClipboardFilter: CaseIterable, Sendable {
-    case all, media, data
-
-    var icon: String {
-        switch self {
-        case .all:   "square.grid.2x2"
-        case .media: "photo"
-        case .data:  "info.circle"
-        }
-    }
-}
-
-// MARK: - Disk Persistence Protocol & Actor
-
-protocol ClipboardStorageProtocol: Sendable {
-    func load() -> [ClipboardItem]
-    func save(items: [ClipboardItem])
-    func clearAll()
-}
-
-private struct PersistedItemDTO: Codable {
-    let id: UUID
-    let type: String
-    let textValue: String?
-    let urlString: String?
-    let imageFilename: String?
-    let timestamp: Date
-    let source: String
-    let isPinned: Bool
-    let originalText: String?
-}
-
-final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
-    static let shared = ClipboardStorage()
-
-    private let fileManager = FileManager.default
-    private let baseDir: URL
-    private let imagesDir: URL
-    private let indexFile: URL
-    private let queue = DispatchQueue(label: "net.dockdoor.clipboard.storage", qos: .utility)
-    private var pendingWorkItem: DispatchWorkItem?
-
-    // Max 15MB per cached image file to prevent memory exhaustion DoS
-    private let maxImageByteSize = 15 * 1024 * 1024
-
-    init() {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        baseDir = appSupport.appendingPathComponent("DockDoorPro/Clipboard", isDirectory: true)
-        imagesDir = baseDir.appendingPathComponent("Images", isDirectory: true)
-        indexFile = baseDir.appendingPathComponent("history.json")
-
-        try? fileManager.createDirectory(at: imagesDir, withIntermediateDirectories: true)
-    }
-
-    func load() -> [ClipboardItem] {
-        guard fileManager.fileExists(atPath: indexFile.path) else { return [] }
-        do {
-            let data = try Data(contentsOf: indexFile)
-            guard !data.isEmpty else { return [] }
-            let dtos = try JSONDecoder().decode([PersistedItemDTO].self, from: data)
-            return dtos.compactMap { dto -> ClipboardItem? in
-                let dataType: ClipboardDataType
-                switch dto.type {
-                case "text":
-                    guard let text = dto.textValue else { return nil }
-                    dataType = .text(text)
-                case "url":
-                    guard let urlStr = dto.urlString, let url = URL(string: urlStr) else { return nil }
-                    dataType = .url(url)
-                case "fileURL":
-                    guard let urlStr = dto.urlString, let url = URL(string: urlStr) else { return nil }
-                    dataType = .fileURL(url)
-                case "image":
-                    guard let imgFile = dto.imageFilename else { return nil }
-                    let imgURL = imagesDir.appendingPathComponent(imgFile)
-                    guard let attributes = try? fileManager.attributesOfItem(atPath: imgURL.path),
-                          let fileSize = attributes[.size] as? Int,
-                          fileSize <= maxImageByteSize,
-                          let imgData = try? Data(contentsOf: imgURL) else { return nil }
-                    dataType = .image(imgData)
-                default:
-                    return nil
-                }
-                return ClipboardItem(
-                    id: dto.id,
-                    data: dataType,
-                    timestamp: dto.timestamp,
-                    source: dto.source,
-                    isPinned: dto.isPinned,
-                    originalText: dto.originalText
-                )
-            }
-        } catch {
-            logger.error("Failed to decode history.json: \(error.localizedDescription)")
-            // Backup corrupted file
-            let backupFile = baseDir.appendingPathComponent("history.json.corrupted")
-            try? fileManager.moveItem(at: indexFile, to: backupFile)
-            return []
-        }
-    }
-
-    // FIX #3 & PERF #1: Debounced background atomic save
-    func save(items: [ClipboardItem]) {
-        let snapshot = items
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            self.pendingWorkItem?.cancel()
-
-            let workItem = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
-                self.performSave(items: snapshot)
-            }
-            self.pendingWorkItem = workItem
-            self.queue.asyncAfter(deadline: .now() + 0.25, execute: workItem)
-        }
-    }
-
-    private func performSave(items: [ClipboardItem]) {
-        do {
-            try fileManager.createDirectory(at: imagesDir, withIntermediateDirectories: true)
-
-            var activeImageFilenames = Set<String>()
-            var dtos: [PersistedItemDTO] = []
-            dtos.reserveCapacity(items.count)
-
-            for item in items {
-                switch item.data {
-                case .text(let text):
-                    dtos.append(PersistedItemDTO(
-                        id: item.id,
-                        type: "text",
-                        textValue: text,
-                        urlString: nil,
-                        imageFilename: nil,
-                        timestamp: item.timestamp,
-                        source: item.source,
-                        isPinned: item.isPinned,
-                        originalText: item.originalText
-                    ))
-                case .url(let url):
-                    dtos.append(PersistedItemDTO(
-                        id: item.id,
-                        type: "url",
-                        textValue: nil,
-                        urlString: url.absoluteString,
-                        imageFilename: nil,
-                        timestamp: item.timestamp,
-                        source: item.source,
-                        isPinned: item.isPinned,
-                        originalText: item.originalText
-                    ))
-                case .fileURL(let url):
-                    dtos.append(PersistedItemDTO(
-                        id: item.id,
-                        type: "fileURL",
-                        textValue: nil,
-                        urlString: url.absoluteString,
-                        imageFilename: nil,
-                        timestamp: item.timestamp,
-                        source: item.source,
-                        isPinned: item.isPinned,
-                        originalText: item.originalText
-                    ))
-                case .image(let data):
-                    guard data.count <= maxImageByteSize else { continue }
-                    let filename = "\(item.id.uuidString).dat"
-                    activeImageFilenames.insert(filename)
-                    let fileURL = imagesDir.appendingPathComponent(filename)
-                    if !fileManager.fileExists(atPath: fileURL.path) {
-                        try? data.write(to: fileURL, options: .atomic)
-                    }
-                    dtos.append(PersistedItemDTO(
-                        id: item.id,
-                        type: "image",
-                        textValue: nil,
-                        urlString: nil,
-                        imageFilename: filename,
-                        timestamp: item.timestamp,
-                        source: item.source,
-                        isPinned: item.isPinned,
-                        originalText: nil
-                    ))
-                }
-            }
-
-            let encoded = try JSONEncoder().encode(dtos)
-            try encoded.write(to: indexFile, options: .atomic)
-
-            // Cleanup deleted image files
-            if let files = try? fileManager.contentsOfDirectory(atPath: imagesDir.path) {
-                for file in files where !activeImageFilenames.contains(file) {
-                    try? fileManager.removeItem(at: imagesDir.appendingPathComponent(file))
-                }
-            }
-        } catch {
-            logger.error("Failed to save clipboard history to disk: \(error.localizedDescription)")
-        }
-    }
-
-    func clearAll() {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            self.pendingWorkItem?.cancel()
-            try? self.fileManager.removeItem(at: self.indexFile)
-            try? self.fileManager.removeItem(at: self.imagesDir)
-            try? self.fileManager.createDirectory(at: self.imagesDir, withIntermediateDirectories: true)
-        }
-    }
-}
-
-// MARK: - Observable Manager State
+// MARK: - Clipboard Manager State
 
 @Observable
 final class ClipboardManagerState: @unchecked Sendable {
     var clipboardItems: [ClipboardItem] = []
-    var isPersistenceEnabled: Bool {
+    var maxHistoryCount: Int = 100
+    var isPersistenceEnabled: Bool = true {
         didSet {
-            UserDefaults.standard.set(isPersistenceEnabled, forKey: "ClipboardHistory_persistRestarts")
+            UserDefaults.standard.set(isPersistenceEnabled, forKey: "ClipboardHistory_persist")
             if isPersistenceEnabled {
                 storage.save(items: clipboardItems)
+            } else {
+                storage.clearAll()
             }
         }
     }
 
-    var maxHistoryCount: Int = 100
-    private var isInternalCopy = false
+    private let storage: any ClipboardStorageProtocol
     private var lastChangeCount: Int = 0
-    private let storage: ClipboardStorageProtocol
+    private var isInternalCopy = false
 
     var pinnedItems: [ClipboardItem] { clipboardItems.filter { $0.isPinned } }
     var unpinnedItems: [ClipboardItem] { clipboardItems.filter { !$0.isPinned } }
 
-    init(storage: ClipboardStorageProtocol = ClipboardStorage.shared) {
-        self.storage = storage
-        let persistedPreference = UserDefaults.standard.object(forKey: "ClipboardHistory_persistRestarts")
-        let shouldPersist = (persistedPreference as? Bool) ?? true
+    init(storage: (any ClipboardStorageProtocol)? = nil) {
+        let defaultStorage = storage ?? ClipboardStorage.shared
+        self.storage = defaultStorage
+
+        let shouldPersist = UserDefaults.standard.object(forKey: "ClipboardHistory_persist") as? Bool ?? true
         self.isPersistenceEnabled = shouldPersist
 
         if shouldPersist {
-            self.clipboardItems = storage.load()
+            self.clipboardItems = defaultStorage.load()
         }
     }
 
@@ -498,7 +102,7 @@ final class ClipboardManagerState: @unchecked Sendable {
     func updateItemText(_ item: ClipboardItem, newText: String) -> ClipboardItem? {
         guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return nil }
         let currentPinned = clipboardItems[idx].isPinned
-        
+
         let rootOriginalText: String?
         if let existingOrig = clipboardItems[idx].originalText {
             rootOriginalText = existingOrig
@@ -586,6 +190,8 @@ final class ClipboardManagerState: @unchecked Sendable {
         }
     }
 
+    // MARK: - Private Pasteboard Detection & Ingestion
+
     private func detectClipboardData(from pasteboard: NSPasteboard) -> ClipboardDataType? {
         // Privacy & Security: Filter out password managers and concealed/transient types
         let concealedTypes: [NSPasteboard.PasteboardType] = [
@@ -636,7 +242,8 @@ final class ClipboardManagerState: @unchecked Sendable {
                 data: existing.data,
                 timestamp: Date(),
                 source: source,
-                isPinned: true
+                isPinned: true,
+                originalText: existing.originalText
             )
             if isPersistenceEnabled {
                 storage.save(items: clipboardItems)
@@ -671,106 +278,3 @@ final class ClipboardManagerState: @unchecked Sendable {
         }
     }
 }
-
-// MARK: - Developer & Text Formatting Tools
-
-enum DeveloperTextTools {
-    static func isJSON(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (trimmed.hasPrefix("{") && trimmed.hasSuffix("}")) ||
-              (trimmed.hasPrefix("[") && trimmed.hasSuffix("]")),
-              let data = trimmed.data(using: .utf8) else { return false }
-        return (try? JSONSerialization.jsonObject(with: data, options: [])) != nil
-    }
-
-    static func beautifyJSON(_ text: String) -> String? {
-        guard let data = text.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
-              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
-              let formatted = String(data: prettyData, encoding: .utf8) else {
-            return nil
-        }
-        return formatted
-    }
-
-    static func minifyJSON(_ text: String) -> String? {
-        guard let data = text.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
-              let compactData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
-              let formatted = String(data: compactData, encoding: .utf8) else {
-            return nil
-        }
-        return formatted
-    }
-
-    static func isBase64(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 4, trimmed.count % 4 == 0,
-              let data = Data(base64Encoded: trimmed),
-              let str = String(data: data, encoding: .utf8), !str.isEmpty else {
-            return false
-        }
-        return true
-    }
-
-    static func decodeBase64(_ text: String) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let data = Data(base64Encoded: trimmed),
-              let str = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return str
-    }
-
-    static func encodeBase64(_ text: String) -> String {
-        return Data(text.utf8).base64EncodedString()
-    }
-
-    static func isURLEncoded(_ text: String) -> Bool {
-        return text.contains("%") && (text.removingPercentEncoding != text)
-    }
-
-    static func decodeURL(_ text: String) -> String? {
-        return text.removingPercentEncoding
-    }
-
-    static func encodeURL(_ text: String) -> String? {
-        return text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-    }
-
-    static func cleanPlainText(_ text: String) -> String {
-        var result = text
-        result = result.replacingOccurrences(of: "“", with: "\"")
-                       .replacingOccurrences(of: "”", with: "\"")
-                       .replacingOccurrences(of: "‘", with: "'")
-                       .replacingOccurrences(of: "’", with: "'")
-        let lines = result.components(separatedBy: .newlines)
-        return lines.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    static func toCamelCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
-        guard let first = words.first?.lowercased() else { return text }
-        let rest = words.dropFirst().map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
-        return first + rest.joined()
-    }
-
-    static func toSnakeCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
-        return words.map { $0.lowercased() }.joined(separator: "_")
-    }
-
-    static func toKebabCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
-        return words.map { $0.lowercased() }.joined(separator: "-")
-    }
-
-    static func toUpperCase(_ text: String) -> String {
-        return text.uppercased()
-    }
-
-    static func toLowerCase(_ text: String) -> String {
-        return text.lowercased()
-    }
-}
-
