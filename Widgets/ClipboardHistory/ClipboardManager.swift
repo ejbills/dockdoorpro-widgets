@@ -475,10 +475,12 @@ final class ClipboardManagerState: @unchecked Sendable {
         case let .url(url):         pasteboard.setString(url.absoluteString, forType: .string)
         case let .fileURL(url):     pasteboard.writeObjects([url as NSURL])
         }
+        lastChangeCount = pasteboard.changeCount
     }
 
     func updateItemText(_ item: ClipboardItem, newText: String) -> ClipboardItem? {
         guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return nil }
+        let currentPinned = clipboardItems[idx].isPinned
         let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
         let updatedData: ClipboardDataType
         if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")),
@@ -493,7 +495,7 @@ final class ClipboardManagerState: @unchecked Sendable {
             data: updatedData,
             timestamp: Date(),
             source: item.source,
-            isPinned: item.isPinned
+            isPinned: currentPinned
         )
         clipboardItems[idx] = updatedItem
         if isPersistenceEnabled {
@@ -557,6 +559,32 @@ final class ClipboardManagerState: @unchecked Sendable {
     }
 
     private func addClipboardItem(data: ClipboardDataType, source: String) {
+        // If content already matches an existing pinned item, keep it pinned and update timestamp
+        if let pinnedIdx = clipboardItems.firstIndex(where: { item in
+            guard item.isPinned else { return false }
+            switch (data, item.data) {
+            case let (.text(a), .text(b)):       return a == b
+            case let (.url(a), .url(b)):         return a.absoluteString == b.absoluteString
+            case let (.fileURL(a), .fileURL(b)): return a.path == b.path
+            case let (.image(a), .image(b)):     return a == b
+            default: return false
+            }
+        }) {
+            let existing = clipboardItems[pinnedIdx]
+            clipboardItems[pinnedIdx] = ClipboardItem(
+                id: existing.id,
+                data: existing.data,
+                timestamp: Date(),
+                source: source,
+                isPinned: true
+            )
+            if isPersistenceEnabled {
+                storage.save(items: clipboardItems)
+            }
+            return
+        }
+
+        // Remove existing unpinned duplicate
         clipboardItems.removeAll { item in
             guard !item.isPinned else { return false }
             switch (data, item.data) {
@@ -569,7 +597,7 @@ final class ClipboardManagerState: @unchecked Sendable {
         }
 
         let insertIdx = pinnedItems.count
-        clipboardItems.insert(ClipboardItem(data: data, timestamp: Date(), source: source), at: insertIdx)
+        clipboardItems.insert(ClipboardItem(data: data, timestamp: Date(), source: source, isPinned: false), at: insertIdx)
 
         let unpinned = clipboardItems.filter { !$0.isPinned }
         if unpinned.count > maxHistoryCount {
