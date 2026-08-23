@@ -35,7 +35,7 @@ enum TextSubtype {
 }
 
 struct ClipboardItem: Identifiable, Hashable {
-    let id = UUID()
+    let id: UUID
     let data: ClipboardDataType
     let timestamp: Date
     let source: String
@@ -44,7 +44,8 @@ struct ClipboardItem: Identifiable, Hashable {
     let cachedColor: Color?
     let cachedSubtype: TextSubtype?
 
-    init(data: ClipboardDataType, timestamp: Date, source: String, isPinned: Bool = false) {
+    init(id: UUID = UUID(), data: ClipboardDataType, timestamp: Date, source: String, isPinned: Bool = false) {
+        self.id = id
         self.data = data
         self.timestamp = timestamp
         self.source = source
@@ -162,14 +163,200 @@ enum ClipboardFilter: CaseIterable {
     }
 }
 
+// MARK: - Disk Persistence Storage
+
+private struct PersistedItemDTO: Codable {
+    let id: UUID
+    let type: String // "text", "image", "url", "fileURL"
+    let textValue: String?
+    let urlString: String?
+    let imageFilename: String?
+    let timestamp: Date
+    let source: String
+    let isPinned: Bool
+}
+
+final class ClipboardStorage: @unchecked Sendable {
+    static let shared = ClipboardStorage()
+
+    private let fileManager = FileManager.default
+    private let baseDir: URL
+    private let imagesDir: URL
+    private let indexFile: URL
+    private let queue = DispatchQueue(label: "net.dockdoor.clipboard.storage", qos: .utility)
+
+    init() {
+        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        baseDir = appSupport.appendingPathComponent("DockDoorPro/Clipboard", isDirectory: true)
+        imagesDir = baseDir.appendingPathComponent("Images", isDirectory: true)
+        indexFile = baseDir.appendingPathComponent("history.json")
+
+        try? fileManager.createDirectory(at: imagesDir, withIntermediateDirectories: true)
+    }
+
+    func load() -> [ClipboardItem] {
+        guard fileManager.fileExists(atPath: indexFile.path) else { return [] }
+        do {
+            let data = try Data(contentsOf: indexFile)
+            let dtos = try JSONDecoder().decode([PersistedItemDTO].self, from: data)
+            return dtos.compactMap { dto -> ClipboardItem? in
+                let dataType: ClipboardDataType
+                switch dto.type {
+                case "text":
+                    guard let text = dto.textValue else { return nil }
+                    dataType = .text(text)
+                case "url":
+                    guard let urlStr = dto.urlString, let url = URL(string: urlStr) else { return nil }
+                    dataType = .url(url)
+                case "fileURL":
+                    guard let urlStr = dto.urlString, let url = URL(string: urlStr) else { return nil }
+                    dataType = .fileURL(url)
+                case "image":
+                    guard let imgFile = dto.imageFilename else { return nil }
+                    let imgURL = imagesDir.appendingPathComponent(imgFile)
+                    guard let imgData = try? Data(contentsOf: imgURL) else { return nil }
+                    dataType = .image(imgData)
+                default:
+                    return nil
+                }
+                return ClipboardItem(
+                    id: dto.id,
+                    data: dataType,
+                    timestamp: dto.timestamp,
+                    source: dto.source,
+                    isPinned: dto.isPinned
+                )
+            }
+        } catch {
+            return []
+        }
+    }
+
+    func save(items: [ClipboardItem]) {
+        let snapshot = items
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                try self.fileManager.createDirectory(at: self.imagesDir, withIntermediateDirectories: true)
+
+                var activeImageFilenames = Set<String>()
+                var dtos: [PersistedItemDTO] = []
+
+                for item in snapshot {
+                    switch item.data {
+                    case .text(let text):
+                        dtos.append(PersistedItemDTO(
+                            id: item.id,
+                            type: "text",
+                            textValue: text,
+                            urlString: nil,
+                            imageFilename: nil,
+                            timestamp: item.timestamp,
+                            source: item.source,
+                            isPinned: item.isPinned
+                        ))
+                    case .url(let url):
+                        dtos.append(PersistedItemDTO(
+                            id: item.id,
+                            type: "url",
+                            textValue: nil,
+                            urlString: url.absoluteString,
+                            imageFilename: nil,
+                            timestamp: item.timestamp,
+                            source: item.source,
+                            isPinned: item.isPinned
+                        ))
+                    case .fileURL(let url):
+                        dtos.append(PersistedItemDTO(
+                            id: item.id,
+                            type: "fileURL",
+                            textValue: nil,
+                            urlString: url.absoluteString,
+                            imageFilename: nil,
+                            timestamp: item.timestamp,
+                            source: item.source,
+                            isPinned: item.isPinned
+                        ))
+                    case .image(let data):
+                        let filename = "\(item.id.uuidString).dat"
+                        activeImageFilenames.insert(filename)
+                        let fileURL = self.imagesDir.appendingPathComponent(filename)
+                        if !self.fileManager.fileExists(atPath: fileURL.path) {
+                            try? data.write(to: fileURL, options: .atomic)
+                        }
+                        dtos.append(PersistedItemDTO(
+                            id: item.id,
+                            type: "image",
+                            textValue: nil,
+                            urlString: nil,
+                            imageFilename: filename,
+                            timestamp: item.timestamp,
+                            source: item.source,
+                            isPinned: item.isPinned
+                        ))
+                    }
+                }
+
+                let encoded = try JSONEncoder().encode(dtos)
+                try encoded.write(to: self.indexFile, options: .atomic)
+
+                // Cleanup deleted image files
+                if let files = try? self.fileManager.contentsOfDirectory(atPath: self.imagesDir.path) {
+                    for file in files where !activeImageFilenames.contains(file) {
+                        try? self.fileManager.removeItem(at: self.imagesDir.appendingPathComponent(file))
+                    }
+                }
+            } catch {
+                // Log silently
+            }
+        }
+    }
+
+    func clearAll() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            try? self.fileManager.removeItem(at: self.indexFile)
+            try? self.fileManager.removeItem(at: self.imagesDir)
+            try? self.fileManager.createDirectory(at: self.imagesDir, withIntermediateDirectories: true)
+        }
+    }
+}
+
+// MARK: - Observable Manager State
+
 @Observable
 final class ClipboardManagerState {
     var clipboardItems: [ClipboardItem] = []
+    var isPersistenceEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isPersistenceEnabled, forKey: "ClipboardHistory_persistRestarts")
+            if isPersistenceEnabled {
+                ClipboardStorage.shared.save(items: clipboardItems)
+            }
+        }
+    }
+
+    var maxHistoryCount: Int = 100
     private var isInternalCopy = false
     private var lastChangeCount: Int = 0
 
     var pinnedItems: [ClipboardItem] { clipboardItems.filter { $0.isPinned } }
     var unpinnedItems: [ClipboardItem] { clipboardItems.filter { !$0.isPinned } }
+
+    init() {
+        let persistedPreference = UserDefaults.standard.object(forKey: "ClipboardHistory_persistRestarts")
+        let shouldPersist = (persistedPreference as? Bool) ?? true
+        self.isPersistenceEnabled = shouldPersist
+
+        if shouldPersist {
+            let loaded = ClipboardStorage.shared.load()
+            self.clipboardItems = loaded
+        }
+    }
+
+    func togglePersistence() {
+        isPersistenceEnabled.toggle()
+    }
 
     func filteredItems(_ filter: ClipboardFilter) -> [ClipboardItem] {
         switch filter {
@@ -230,17 +417,40 @@ final class ClipboardManagerState {
     func togglePin(_ item: ClipboardItem) {
         guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return }
         clipboardItems[idx].isPinned.toggle()
+        if isPersistenceEnabled {
+            ClipboardStorage.shared.save(items: clipboardItems)
+        }
     }
 
     func removeItem(_ item: ClipboardItem) {
         clipboardItems.removeAll { $0.id == item.id }
+        if isPersistenceEnabled {
+            ClipboardStorage.shared.save(items: clipboardItems)
+        }
     }
 
     func clearAllItems() {
         clipboardItems.removeAll { !$0.isPinned }
+        if isPersistenceEnabled {
+            ClipboardStorage.shared.save(items: clipboardItems)
+        }
     }
 
     private func detectClipboardData(from pasteboard: NSPasteboard) -> ClipboardDataType? {
+        // Privacy / Password Protection: Skip concealed or transient password types
+        let concealedTypes: [NSPasteboard.PasteboardType] = [
+            NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"),
+            NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType"),
+            NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
+            NSPasteboard.PasteboardType("com.agilebits.onepassword"),
+            NSPasteboard.PasteboardType("de.stefanimhoff.stefan.KeePassXC")
+        ]
+        if let types = pasteboard.types {
+            for cType in concealedTypes where types.contains(cType) {
+                return nil
+            }
+        }
+
         if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self],
                options: [.urlReadingFileURLsOnly: true]) as? [URL],
            let fileURL = fileURLs.first {
@@ -274,10 +484,14 @@ final class ClipboardManagerState {
         clipboardItems.insert(ClipboardItem(data: data, timestamp: Date(), source: source), at: insertIdx)
 
         let unpinned = clipboardItems.filter { !$0.isPinned }
-        if unpinned.count > 25 {
+        if unpinned.count > maxHistoryCount {
             if let last = unpinned.last {
                 clipboardItems.removeAll { $0.id == last.id }
             }
+        }
+
+        if isPersistenceEnabled {
+            ClipboardStorage.shared.save(items: clipboardItems)
         }
     }
 }

@@ -136,8 +136,29 @@ private struct ClipboardPanelContent: View {
                 .compositingGroup()
             }
 
-            HStack {
+            HStack(spacing: 8) {
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        manager.togglePersistence()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: manager.isPersistenceEnabled ? "internaldrive.fill" : "memorychip")
+                            .font(.system(size: 10))
+                        Text(manager.isPersistenceEnabled ? "Persist" : "RAM Only")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(manager.isPersistenceEnabled ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    .foregroundStyle(manager.isPersistenceEnabled ? Color.accentColor : Color.secondary)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(manager.isPersistenceEnabled ? "Clipboard history survives restarts (Click to switch to RAM only)" : "Clipboard history is memory only (Click to enable disk persistence)")
+
                 Spacer()
+
                 ActionButton(icon: "xmark.circle", style: .destructive) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         manager.clearAllItems()
@@ -146,6 +167,7 @@ private struct ClipboardPanelContent: View {
                 }
                 .opacity(manager.clipboardItems.isEmpty ? 0.3 : 1)
                 .disabled(manager.clipboardItems.isEmpty)
+                .help("Clear unpinned history")
             }
             .padding(.horizontal, 12)
             .frame(height: 52)
