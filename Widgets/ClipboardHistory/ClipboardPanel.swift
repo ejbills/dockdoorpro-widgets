@@ -796,16 +796,14 @@ private struct ResizableSplitDivider: View {
             Rectangle()
                 .fill(isHovered || isDragging ? Color.accentColor.opacity(0.35) : Color.clear)
                 .frame(width: 8)
+
+            ResizeCursorView()
+                .frame(width: 8)
         }
         .frame(width: 8)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovered = hovering
-            if hovering {
-                NSCursor.resizeLeftRight.push()
-            } else if !isDragging {
-                NSCursor.pop()
-            }
         }
         .gesture(
             DragGesture(coordinateSpace: .global)
@@ -819,9 +817,6 @@ private struct ResizableSplitDivider: View {
                 }
                 .onEnded { _ in
                     isDragging = false
-                    if !isHovered {
-                        NSCursor.pop()
-                    }
                     UserDefaults.standard.set(Double(sidebarWidth), forKey: "ClipboardHistory_sidebarWidth")
                 }
         )
@@ -834,4 +829,22 @@ private struct ResizableSplitDivider: View {
         .help("Drag to resize sidebar (Double-click to reset)")
     }
 }
+
+// MARK: - Native macOS Cursor Rect View
+
+private struct ResizeCursorView: NSViewRepresentable {
+    func makeNSView(context: Context) -> ResizeCursorNSView {
+        ResizeCursorNSView()
+    }
+
+    func updateNSView(_ nsView: ResizeCursorNSView, context: Context) {}
+}
+
+private class ResizeCursorNSView: NSView {
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds, cursor: .resizeLeftRight)
+    }
+}
+
 
