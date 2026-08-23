@@ -224,17 +224,21 @@ final class ClipboardManagerState: @unchecked Sendable {
         return nil
     }
 
+    private func areDataEqual(_ a: ClipboardDataType, _ b: ClipboardDataType) -> Bool {
+        switch (a, b) {
+        case let (.text(t1), .text(t2)): return t1 == t2
+        case let (.url(u1), .url(u2)): return u1.absoluteString == u2.absoluteString
+        case let (.fileURL(f1), .fileURL(f2)): return f1.path == f2.path
+        case let (.image(d1), .image(d2)): return d1.count == d2.count && d1 == d2
+        default: return false
+        }
+    }
+
     private func addClipboardItem(data: ClipboardDataType, source: String) {
         // If content already matches an existing pinned item, keep it pinned and update timestamp
         if let pinnedIdx = clipboardItems.firstIndex(where: { item in
             guard item.isPinned else { return false }
-            switch (data, item.data) {
-            case let (.text(a), .text(b)):       return a == b
-            case let (.url(a), .url(b)):         return a.absoluteString == b.absoluteString
-            case let (.fileURL(a), .fileURL(b)): return a.path == b.path
-            case let (.image(a), .image(b)):     return a == b
-            default: return false
-            }
+            return areDataEqual(data, item.data)
         }) {
             let existing = clipboardItems[pinnedIdx]
             clipboardItems[pinnedIdx] = ClipboardItem(
@@ -254,13 +258,7 @@ final class ClipboardManagerState: @unchecked Sendable {
         // Remove existing unpinned duplicate
         clipboardItems.removeAll { item in
             guard !item.isPinned else { return false }
-            switch (data, item.data) {
-            case let (.text(a), .text(b)):       return a == b
-            case let (.url(a), .url(b)):         return a.absoluteString == b.absoluteString
-            case let (.fileURL(a), .fileURL(b)): return a.path == b.path
-            case let (.image(a), .image(b)):     return a == b
-            default: return false
-            }
+            return areDataEqual(data, item.data)
         }
 
         let insertIdx = pinnedItems.count

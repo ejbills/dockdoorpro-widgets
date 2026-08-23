@@ -70,26 +70,47 @@ enum DeveloperTextTools {
         var result = text
         result = result.replacingOccurrences(of: "“", with: "\"")
                        .replacingOccurrences(of: "”", with: "\"")
+                       .replacingOccurrences(of: "„", with: "\"")
                        .replacingOccurrences(of: "‘", with: "'")
                        .replacingOccurrences(of: "’", with: "'")
+                       .replacingOccurrences(of: "‚", with: "'")
+                       .replacingOccurrences(of: "«", with: "\"")
+                       .replacingOccurrences(of: "»", with: "\"")
+                       .replacingOccurrences(of: "\u{00A0}", with: " ") // Non-breaking space
         let lines = result.components(separatedBy: .newlines)
         return lines.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private static func extractWords(from text: String) -> [String] {
+        var result = ""
+        let chars = Array(text)
+        for i in 0..<chars.count {
+            let current = chars[i]
+            if i > 0 {
+                let prev = chars[i - 1]
+                if current.isUppercase && (prev.isLowercase || (i + 1 < chars.count && chars[i + 1].isLowercase)) {
+                    result.append(" ")
+                }
+            }
+            result.append(current)
+        }
+        return result.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    }
+
     static func toCamelCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+        let words = extractWords(from: text)
         guard let first = words.first?.lowercased() else { return text }
         let rest = words.dropFirst().map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
         return first + rest.joined()
     }
 
     static func toSnakeCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+        let words = extractWords(from: text)
         return words.map { $0.lowercased() }.joined(separator: "_")
     }
 
     static func toKebabCase(_ text: String) -> String {
-        let words = text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+        let words = extractWords(from: text)
         return words.map { $0.lowercased() }.joined(separator: "-")
     }
 

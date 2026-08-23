@@ -59,10 +59,10 @@ final class KeyHandlingNSView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if let win = window, monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak win] event in
-                guard let self = self, let panelWindow = win else { return event }
-                guard event.window == panelWindow else { return event }
+        if window != nil && monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self = self, let currentWindow = self.window else { return event }
+                guard event.window == currentWindow else { return event }
                 if self.isEditing { return event }
 
                 switch event.keyCode {

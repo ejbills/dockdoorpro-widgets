@@ -32,6 +32,7 @@ private struct ClipboardPanelContent: View {
     @State private var isEditing = false
     @State private var editedText = ""
     @State private var showCopyToast = false
+    @State private var toastDismissWorkItem: DispatchWorkItem?
     @FocusState private var isEditorFocused: Bool
     @State private var sidebarWidth: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
@@ -108,7 +109,42 @@ private struct ClipboardPanelContent: View {
                     selected = filtered.first ?? manager.clipboardItems.first
                 }
             }
+            .onChange(of: activeFilter) { _, _ in
+                validateAndSyncSelection()
+            }
+            .onChange(of: searchText) { _, _ in
+                validateAndSyncSelection()
+            }
         }
+    }
+
+    private func validateAndSyncSelection() {
+        if isEditing {
+            isEditing = false
+            editedText = ""
+        }
+        let items = filtered
+        if let sel = selected {
+            if !items.contains(where: { $0.id == sel.id }) {
+                selected = items.first
+            }
+        } else {
+            selected = items.first
+        }
+    }
+
+    private func triggerCopyToast() {
+        toastDismissWorkItem?.cancel()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            showCopyToast = true
+        }
+        let work = DispatchWorkItem {
+            withAnimation {
+                showCopyToast = false
+            }
+        }
+        toastDismissWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
     }
 
     // MARK: - Sidebar
@@ -241,6 +277,10 @@ private struct ClipboardPanelContent: View {
     // MARK: - Navigation & Tap Handlers
 
     private func selectPrevious() {
+        if isEditing {
+            isEditing = false
+            editedText = ""
+        }
         let items = filtered
         guard !items.isEmpty else { return }
         if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
@@ -252,6 +292,10 @@ private struct ClipboardPanelContent: View {
     }
 
     private func selectNext() {
+        if isEditing {
+            isEditing = false
+            editedText = ""
+        }
         let items = filtered
         guard !items.isEmpty else { return }
         if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
@@ -265,9 +309,7 @@ private struct ClipboardPanelContent: View {
     private func copySelected() {
         guard let item = selected ?? filtered.first else { return }
         manager.copyItemToClipboard(item)
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            showCopyToast = true
-        }
+        triggerCopyToast()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             dismiss()
         }
@@ -563,7 +605,7 @@ private struct ClipboardPanelContent: View {
                 ActionButton(icon: "trash", style: .destructive) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         manager.removeItem(item)
-                        selected = manager.clipboardItems.first
+                        selected = filtered.first ?? manager.clipboardItems.first
                     }
                 }
                 .help("Delete item")
@@ -600,12 +642,7 @@ private struct ClipboardPanelContent: View {
                         if let restored = manager.restoreItemToOriginal(item) {
                             selected = restored
                             manager.copyItemToClipboard(restored)
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                showCopyToast = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                withAnimation { showCopyToast = false }
-                            }
+                            triggerCopyToast()
                         }
                     }
                     .help("Restore text to original state")
@@ -649,12 +686,7 @@ private struct ClipboardPanelContent: View {
                         if let restored = manager.restoreItemToOriginal(item) {
                             selected = restored
                             manager.copyItemToClipboard(restored)
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                showCopyToast = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                withAnimation { showCopyToast = false }
-                            }
+                            triggerCopyToast()
                         }
                     }
                 }
@@ -746,12 +778,7 @@ private struct ClipboardPanelContent: View {
         if let updated = manager.updateItemText(item, newText: newText) {
             selected = updated
             manager.copyItemToClipboard(updated)
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                showCopyToast = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation { showCopyToast = false }
-            }
+            triggerCopyToast()
         }
     }
 }
