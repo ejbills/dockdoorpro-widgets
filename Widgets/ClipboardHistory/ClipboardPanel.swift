@@ -32,6 +32,10 @@ private struct ClipboardPanelContent: View {
     @State private var activeFilter: ClipboardFilter = .all
     @State private var searchActive = false
     @State private var searchText = ""
+    @State private var sidebarWidth: CGFloat = {
+        let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
+        return saved >= 180 && saved <= 440 ? CGFloat(saved) : 280
+    }()
 
     private var filtered: [ClipboardItem] {
         let base = manager.filteredItems(activeFilter)
@@ -52,9 +56,13 @@ private struct ClipboardPanelContent: View {
             let _ = manager.refresh()
             HStack(spacing: 0) {
                 sidebar
-                    .frame(width: 280)
+                    .frame(width: sidebarWidth)
 
-                Divider()
+                ResizableSplitDivider(
+                    sidebarWidth: $sidebarWidth,
+                    minWidth: 180,
+                    maxWidth: 440
+                )
 
                 previewPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -767,3 +775,63 @@ struct NSPanelSentinel: NSViewRepresentable {
         }
     }
 }
+
+// MARK: - Resizable Split Divider
+
+private struct ResizableSplitDivider: View {
+    @Binding var sidebarWidth: CGFloat
+    let minWidth: CGFloat
+    let maxWidth: CGFloat
+
+    @State private var isHovered = false
+    @State private var isDragging = false
+    @State private var dragInitialWidth: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color(NSColor.separatorColor))
+                .frame(width: 1)
+
+            Rectangle()
+                .fill(isHovered || isDragging ? Color.accentColor.opacity(0.35) : Color.clear)
+                .frame(width: 8)
+        }
+        .frame(width: 8)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                NSCursor.resizeLeftRight.push()
+            } else if !isDragging {
+                NSCursor.pop()
+            }
+        }
+        .gesture(
+            DragGesture(coordinateSpace: .global)
+                .onChanged { value in
+                    if !isDragging {
+                        isDragging = true
+                        dragInitialWidth = sidebarWidth
+                    }
+                    let newWidth = dragInitialWidth + value.translation.width
+                    sidebarWidth = min(max(newWidth, minWidth), maxWidth)
+                }
+                .onEnded { _ in
+                    isDragging = false
+                    if !isHovered {
+                        NSCursor.pop()
+                    }
+                    UserDefaults.standard.set(Double(sidebarWidth), forKey: "ClipboardHistory_sidebarWidth")
+                }
+        )
+        .onTapGesture(count: 2) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                sidebarWidth = 280
+                UserDefaults.standard.set(280.0, forKey: "ClipboardHistory_sidebarWidth")
+            }
+        }
+        .help("Drag to resize sidebar (Double-click to reset)")
+    }
+}
+
