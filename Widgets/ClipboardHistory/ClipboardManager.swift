@@ -43,16 +43,27 @@ struct ClipboardItem: Identifiable, Hashable, Sendable {
     let timestamp: Date
     let source: String
     var isPinned: Bool
+    let originalText: String?
 
     let cachedColor: Color?
     let cachedSubtype: TextSubtype?
 
-    init(id: UUID = UUID(), data: ClipboardDataType, timestamp: Date, source: String, isPinned: Bool = false) {
+    var isModified: Bool {
+        guard let originalText else { return false }
+        switch data {
+        case .text(let t): return t != originalText
+        case .url(let u): return u.absoluteString != originalText
+        default: return false
+        }
+    }
+
+    init(id: UUID = UUID(), data: ClipboardDataType, timestamp: Date, source: String, isPinned: Bool = false, originalText: String? = nil) {
         self.id = id
         self.data = data
         self.timestamp = timestamp
         self.source = source
         self.isPinned = isPinned
+        self.originalText = originalText
         if case .text(let t) = data {
             self.cachedColor = Self.detectColor(in: t)
             self.cachedSubtype = Self.detectSubtype(in: t)
@@ -209,6 +220,7 @@ private struct PersistedItemDTO: Codable {
     let timestamp: Date
     let source: String
     let isPinned: Bool
+    let originalText: String?
 }
 
 final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
@@ -267,7 +279,8 @@ final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
                     data: dataType,
                     timestamp: dto.timestamp,
                     source: dto.source,
-                    isPinned: dto.isPinned
+                    isPinned: dto.isPinned,
+                    originalText: dto.originalText
                 )
             }
         } catch {
@@ -314,7 +327,8 @@ final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
                         imageFilename: nil,
                         timestamp: item.timestamp,
                         source: item.source,
-                        isPinned: item.isPinned
+                        isPinned: item.isPinned,
+                        originalText: item.originalText
                     ))
                 case .url(let url):
                     dtos.append(PersistedItemDTO(
@@ -325,7 +339,8 @@ final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
                         imageFilename: nil,
                         timestamp: item.timestamp,
                         source: item.source,
-                        isPinned: item.isPinned
+                        isPinned: item.isPinned,
+                        originalText: item.originalText
                     ))
                 case .fileURL(let url):
                     dtos.append(PersistedItemDTO(
@@ -336,7 +351,8 @@ final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
                         imageFilename: nil,
                         timestamp: item.timestamp,
                         source: item.source,
-                        isPinned: item.isPinned
+                        isPinned: item.isPinned,
+                        originalText: item.originalText
                     ))
                 case .image(let data):
                     guard data.count <= maxImageByteSize else { continue }
@@ -354,7 +370,8 @@ final class ClipboardStorage: ClipboardStorageProtocol, @unchecked Sendable {
                         imageFilename: filename,
                         timestamp: item.timestamp,
                         source: item.source,
-                        isPinned: item.isPinned
+                        isPinned: item.isPinned,
+                        originalText: nil
                     ))
                 }
             }
@@ -481,6 +498,18 @@ final class ClipboardManagerState: @unchecked Sendable {
     func updateItemText(_ item: ClipboardItem, newText: String) -> ClipboardItem? {
         guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return nil }
         let currentPinned = clipboardItems[idx].isPinned
+        
+        let rootOriginalText: String?
+        if let existingOrig = clipboardItems[idx].originalText {
+            rootOriginalText = existingOrig
+        } else {
+            switch clipboardItems[idx].data {
+            case .text(let t): rootOriginalText = t
+            case .url(let u): rootOriginalText = u.absoluteString
+            default: rootOriginalText = nil
+            }
+        }
+
         let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
         let updatedData: ClipboardDataType
         if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")),
@@ -490,12 +519,43 @@ final class ClipboardManagerState: @unchecked Sendable {
             updatedData = .text(newText)
         }
 
+        let finalOriginalText = (rootOriginalText == newText) ? nil : rootOriginalText
+
         let updatedItem = ClipboardItem(
             id: item.id,
             data: updatedData,
             timestamp: Date(),
             source: item.source,
-            isPinned: currentPinned
+            isPinned: currentPinned,
+            originalText: finalOriginalText
+        )
+        clipboardItems[idx] = updatedItem
+        if isPersistenceEnabled {
+            storage.save(items: clipboardItems)
+        }
+        return updatedItem
+    }
+
+    func restoreItemToOriginal(_ item: ClipboardItem) -> ClipboardItem? {
+        guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }),
+              let origText = clipboardItems[idx].originalText else { return nil }
+        let currentPinned = clipboardItems[idx].isPinned
+        let trimmed = origText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let updatedData: ClipboardDataType
+        if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")),
+           let url = URL(string: trimmed), url.scheme != nil, url.host != nil {
+            updatedData = .url(url)
+        } else {
+            updatedData = .text(origText)
+        }
+
+        let updatedItem = ClipboardItem(
+            id: item.id,
+            data: updatedData,
+            timestamp: Date(),
+            source: item.source,
+            isPinned: currentPinned,
+            originalText: nil
         )
         clipboardItems[idx] = updatedItem
         if isPersistenceEnabled {

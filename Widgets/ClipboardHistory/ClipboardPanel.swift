@@ -106,6 +106,11 @@ private struct ClipboardPanelContent: View {
                     .zIndex(100)
                 }
             }
+            .onAppear {
+                if selected == nil {
+                    selected = filtered.first ?? manager.clipboardItems.first
+                }
+            }
         }
     }
 
@@ -145,31 +150,42 @@ private struct ClipboardPanelContent: View {
             if filtered.isEmpty {
                 emptyState
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 4) {
-                        if !filteredPinned.isEmpty {
-                            sectionHeader(pinned: true)
-                            ForEach(filteredPinned) { item in
-                                ItemRow(item: item, isSelected: selected?.id == item.id) {
-                                    handleTap(item)
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 4) {
+                            if !filteredPinned.isEmpty {
+                                sectionHeader(pinned: true)
+                                ForEach(filteredPinned) { item in
+                                    ItemRow(item: item, isSelected: selected?.id == item.id) {
+                                        handleTap(item)
+                                    }
+                                    .id(item.id)
+                                    .transition(.opacity)
                                 }
-                                .transition(.opacity)
+                            }
+                            if !filteredUnpinned.isEmpty {
+                                if !filteredPinned.isEmpty { sectionHeader(pinned: false) }
+                                ForEach(filteredUnpinned) { item in
+                                    ItemRow(item: item, isSelected: selected?.id == item.id) {
+                                        handleTap(item)
+                                    }
+                                    .id(item.id)
+                                    .transition(.opacity)
+                                }
                             }
                         }
-                        if !filteredUnpinned.isEmpty {
-                            if !filteredPinned.isEmpty { sectionHeader(pinned: false) }
-                            ForEach(filteredUnpinned) { item in
-                                ItemRow(item: item, isSelected: selected?.id == item.id) {
-                                    handleTap(item)
-                                }
-                                .transition(.opacity)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 10)
+                        .animation(.easeInOut(duration: 0.18), value: activeFilter)
+                        .animation(.easeInOut(duration: 0.18), value: searchText)
+                    }
+                    .onChange(of: selected?.id) { _, newId in
+                        if let newId {
+                            withAnimation(.easeOut(duration: 0.12)) {
+                                scrollProxy.scrollTo(newId, anchor: .center)
                             }
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 10)
-                    .animation(.easeInOut(duration: 0.18), value: activeFilter)
-                    .animation(.easeInOut(duration: 0.18), value: searchText)
                 }
                 .overlay(alignment: .top) {
                     LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
@@ -224,11 +240,8 @@ private struct ClipboardPanelContent: View {
         let items = filtered
         guard !items.isEmpty else { return }
         if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
-            if idx > 0 {
-                selected = items[idx - 1]
-            } else {
-                selected = items.last
-            }
+            let prevIdx = max(0, idx - 1)
+            selected = items[prevIdx]
         } else {
             selected = items.first
         }
@@ -238,11 +251,8 @@ private struct ClipboardPanelContent: View {
         let items = filtered
         guard !items.isEmpty else { return }
         if let sel = selected, let idx = items.firstIndex(where: { $0.id == sel.id }) {
-            if idx < items.count - 1 {
-                selected = items[idx + 1]
-            } else {
-                selected = items.first
-            }
+            let nextIdx = min(items.count - 1, idx + 1)
+            selected = items[nextIdx]
         } else {
             selected = items.first
         }
@@ -583,8 +593,41 @@ private struct ClipboardPanelContent: View {
                     .help("Edit URL")
                 }
 
+                if item.isModified {
+                    ActionButton(icon: "arrow.uturn.backward", style: .normal) {
+                        if let restored = manager.restoreItemToOriginal(item) {
+                            selected = restored
+                            manager.copyItemToClipboard(restored)
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                showCopyToast = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                                withAnimation { showCopyToast = false }
+                            }
+                        }
+                    }
+                    .help("Restore text to original state")
+                }
+
                 if currentSelectedText(for: item) != nil {
                     Menu {
+                        if item.isModified {
+                            Section("History") {
+                                Button("Restore Original Text") {
+                                    if let restored = manager.restoreItemToOriginal(item) {
+                                        selected = restored
+                                        manager.copyItemToClipboard(restored)
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                            showCopyToast = true
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                                            withAnimation { showCopyToast = false }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         Section("Transform Case") {
                             Button("UPPERCASE") { applyTransformation(to: item) { DeveloperTextTools.toUpperCase($0) } }
                             Button("lowercase") { applyTransformation(to: item) { DeveloperTextTools.toLowerCase($0) } }
@@ -859,6 +902,13 @@ private struct ItemRow: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if item.isModified {
+                    Image(systemName: "pencil.line")
+                        .font(.caption2)
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.accentColor)
+                        .help("Modified (Click 'Restore' to revert)")
+                }
 
                 if item.isPinned {
                     Image(systemName: "pin.fill")
@@ -1154,9 +1204,10 @@ private class KeyHandlingNSView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window != nil && monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self = self else { return event }
+        if let win = window, monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak win] event in
+                guard let self = self, let panelWindow = win else { return event }
+                guard event.window == panelWindow else { return event }
                 if self.isEditing { return event }
 
                 switch event.keyCode {
