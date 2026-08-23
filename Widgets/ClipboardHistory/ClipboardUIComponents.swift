@@ -25,9 +25,9 @@ struct ActionButton: View {
             Image(systemName: icon)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(foregroundColor)
-                .frame(width: 36, height: 34)
+                .frame(width: 32, height: 32)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(backgroundColor)
                 )
         }
@@ -353,8 +353,8 @@ struct ResizableSplitDivider: View {
         )
         .onTapGesture(count: 2) {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                sidebarWidth = 280
-                UserDefaults.standard.set(280.0, forKey: "ClipboardHistory_sidebarWidth")
+                sidebarWidth = 250
+                UserDefaults.standard.set(250.0, forKey: "ClipboardHistory_sidebarWidth")
             }
         }
         .help("Drag to resize sidebar (Double-click to reset)")

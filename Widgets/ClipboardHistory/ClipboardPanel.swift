@@ -37,7 +37,7 @@ private struct ClipboardPanelContent: View {
     @FocusState private var isPanelFocused: Bool
     @State private var sidebarWidth: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
-        return saved >= 180 && saved <= 440 ? CGFloat(saved) : 280
+        return saved >= 190 && saved <= 330 ? CGFloat(saved) : 250
     }()
 
     private var filtered: [ClipboardItem] {
@@ -60,17 +60,20 @@ private struct ClipboardPanelContent: View {
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: sidebarWidth)
+                    .clipped()
 
                 ResizableSplitDivider(
                     sidebarWidth: $sidebarWidth,
-                    minWidth: 180,
-                    maxWidth: 440
+                    minWidth: 190,
+                    maxWidth: 330
                 )
 
                 previewPane
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
             }
             .frame(width: 620, height: 420)
+            .clipped()
             .focusable()
             .focusEffectDisabled()
             .focused($isPanelFocused)
@@ -214,7 +217,7 @@ private struct ClipboardPanelContent: View {
                     .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.top, 10)
             .padding(.bottom, 6)
             .onChange(of: searchActive) { _, active in
@@ -250,7 +253,7 @@ private struct ClipboardPanelContent: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 6)
                         .padding(.vertical, 10)
                         .animation(.easeInOut(duration: 0.18), value: activeFilter)
                         .animation(.easeInOut(duration: 0.18), value: searchText)
@@ -279,7 +282,7 @@ private struct ClipboardPanelContent: View {
     }
 
     private var sidebarFooter: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Button {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                     manager.togglePersistence()
@@ -291,7 +294,7 @@ private struct ClipboardPanelContent: View {
                     Text(manager.isPersistenceEnabled ? "Persist" : "RAM Only")
                         .font(.system(size: 10, weight: .medium))
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 7)
                 .padding(.vertical, 4)
                 .background(manager.isPersistenceEnabled ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
                 .foregroundStyle(manager.isPersistenceEnabled ? Color.accentColor : Color.secondary)
@@ -312,7 +315,7 @@ private struct ClipboardPanelContent: View {
             .disabled(manager.unpinnedItems.isEmpty)
             .help("Remove all non-pinned items (\(manager.unpinnedItems.count))")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .frame(height: 52)
     }
 
@@ -384,7 +387,7 @@ private struct ClipboardPanelContent: View {
                 .textCase(.uppercase)
             Spacer()
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .padding(.top, 6)
         .padding(.bottom, 2)
     }
@@ -437,13 +440,14 @@ private struct ClipboardPanelContent: View {
                         Text(item.source)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Spacer()
                     Text(item.timestamp, style: .relative)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 8)
 
                 Divider().opacity(0.5)
@@ -469,35 +473,36 @@ private struct ClipboardPanelContent: View {
                             .font(.caption2.monospaced())
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 10)
 
                     TextEditor(text: $editedText)
                         .font(.caption.monospaced())
                         .scrollContentBackground(.hidden)
-                        .padding(10)
+                        .padding(8)
                         .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.textBackgroundColor).opacity(0.6)))
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor.opacity(0.4), lineWidth: 1))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
                         .focused($isEditorFocused)
                 }
             } else {
                 switch item.data {
                 case let .text(text):
                     if let color = item.cachedColor {
-                        VStack(spacing: 16) {
+                        VStack(spacing: 14) {
                             Spacer()
-                            RoundedRectangle(cornerRadius: 24)
+                            RoundedRectangle(cornerRadius: 20)
                                 .fill(color)
-                                .frame(width: 120, height: 120)
+                                .frame(width: 90, height: 90)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 24)
+                                    RoundedRectangle(cornerRadius: 20)
                                         .stroke(Color.primary.opacity(0.15), lineWidth: 1)
                                 )
                             Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
+                                .lineLimit(2)
                             Spacer()
                         }
                     } else {
@@ -506,7 +511,7 @@ private struct ClipboardPanelContent: View {
                                 .font(.caption.monospaced())
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(16)
+                                .padding(12)
                         }
                     }
 
@@ -515,8 +520,8 @@ private struct ClipboardPanelContent: View {
                         Image(nsImage: nsImage)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .padding(16)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .padding(12)
                     }
 
                 case let .url(url):
@@ -530,9 +535,10 @@ private struct ClipboardPanelContent: View {
                             .textSelection(.enabled)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal, 10)
                         Spacer()
                     }
-                    .padding(16)
+                    .padding(12)
 
                 case let .fileURL(url):
                     filePreview(url)
@@ -541,9 +547,9 @@ private struct ClipboardPanelContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(Color.secondary.opacity(0.06))
-                .padding(8)
+                .padding(6)
         )
     }
 
@@ -560,15 +566,15 @@ private struct ClipboardPanelContent: View {
         let ext = url.pathExtension.lowercased()
         if ext == "pdf" {
             PDFPreview(url: url)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(16)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(12)
         } else if Self.imageExtensions.contains(ext) {
             if let nsImage = NSImage(contentsOf: url) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(16)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(12)
             } else {
                 fileFallback(url)
             }
@@ -589,6 +595,7 @@ private struct ClipboardPanelContent: View {
                 .font(.body.weight(.medium))
                 .textSelection(.enabled)
                 .multilineTextAlignment(.center)
+                .lineLimit(2)
             if !url.pathExtension.isEmpty {
                 Text(url.pathExtension.uppercased())
                     .font(.caption2.weight(.semibold))
@@ -599,7 +606,7 @@ private struct ClipboardPanelContent: View {
             }
             Spacer()
         }
-        .padding(16)
+        .padding(12)
     }
 
     // MARK: - Action Bar
@@ -607,7 +614,7 @@ private struct ClipboardPanelContent: View {
     @ViewBuilder
     private func actionBar(_ item: ClipboardItem) -> some View {
         if isEditing {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ActionButton(icon: "xmark", style: .destructive) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                         isEditing = false
@@ -640,10 +647,10 @@ private struct ClipboardPanelContent: View {
                 .help("Save & Copy (⇧⌘Return)")
                 .keyboardShortcut(.return, modifiers: [.command, .shift])
             }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
+            .padding(.horizontal, 10)
+            .frame(height: 48)
         } else {
-            HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 ActionButton(icon: "trash", style: .destructive) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         manager.removeItem(item)
@@ -715,8 +722,8 @@ private struct ClipboardPanelContent: View {
                 }
                 .help("Copy to Clipboard")
             }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
+            .padding(.horizontal, 10)
+            .frame(height: 48)
         }
     }
 
@@ -792,9 +799,9 @@ private struct ClipboardPanelContent: View {
             Image(systemName: "wand.and.stars")
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(Color.secondary)
-                .frame(width: 36, height: 34)
+                .frame(width: 32, height: 32)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(Color.primary.opacity(0.06))
                 )
         }
