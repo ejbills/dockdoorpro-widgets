@@ -57,28 +57,58 @@ final class KeyHandlingNSView: NSView {
     var isEditing: Bool = false
     private var monitor: Any?
 
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if isEditing {
+            super.keyDown(with: event)
+            return
+        }
+        if handleKeyEvent(event) {
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        switch event.keyCode {
+        case 126: // Up arrow
+            onUp?()
+            return true
+        case 125: // Down arrow
+            onDown?()
+            return true
+        case 36:  // Return key
+            onReturn?()
+            return true
+        case 53:  // Escape
+            onEscape?()
+            return true
+        default:
+            return false
+        }
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window != nil && monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self = self, let currentWindow = self.window else { return event }
-                guard event.window == currentWindow else { return event }
-                if self.isEditing { return event }
+        if let win = window {
+            win.makeFirstResponder(self)
+            if monitor == nil {
+                monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                    guard let self = self else { return event }
+                    if self.isEditing { return event }
 
-                switch event.keyCode {
-                case 126: // Up arrow
-                    self.onUp?()
-                    return nil
-                case 125: // Down arrow
-                    self.onDown?()
-                    return nil
-                case 36:  // Return key
-                    self.onReturn?()
-                    return nil
-                case 53:  // Escape
-                    self.onEscape?()
-                    return nil
-                default:
+                    if let eventWin = event.window, let myWin = self.window {
+                        guard eventWin == myWin || eventWin.windowNumber == myWin.windowNumber || myWin.isKeyWindow else {
+                            return event
+                        }
+                    } else if let myWin = self.window, !myWin.isKeyWindow {
+                        return event
+                    }
+
+                    if self.handleKeyEvent(event) {
+                        return nil
+                    }
                     return event
                 }
             }
@@ -119,6 +149,9 @@ struct NSPanelSentinel: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             context.window = window
+            if let window {
+                window.makeKeyAndOrderFront(nil)
+            }
         }
     }
 }

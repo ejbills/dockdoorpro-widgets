@@ -34,6 +34,7 @@ private struct ClipboardPanelContent: View {
     @State private var showCopyToast = false
     @State private var toastDismissWorkItem: DispatchWorkItem?
     @FocusState private var isEditorFocused: Bool
+    @FocusState private var isPanelFocused: Bool
     @State private var sidebarWidth: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
         return saved >= 180 && saved <= 440 ? CGFloat(saved) : 280
@@ -70,6 +71,43 @@ private struct ClipboardPanelContent: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: 620, height: 420)
+            .focusable()
+            .focusEffectDisabled()
+            .focused($isPanelFocused)
+            .onKeyPress(.upArrow) {
+                if !isEditing && !searchActive {
+                    selectPrevious()
+                    return .handled
+                }
+                return .ignored
+            }
+            .onKeyPress(.downArrow) {
+                if !isEditing && !searchActive {
+                    selectNext()
+                    return .handled
+                }
+                return .ignored
+            }
+            .onKeyPress(.return) {
+                if !isEditing && !searchActive {
+                    copySelected()
+                    return .handled
+                }
+                return .ignored
+            }
+            .onKeyPress(.escape) {
+                if searchActive {
+                    searchActive = false
+                    return .handled
+                }
+                if isEditing {
+                    isEditing = false
+                    editedText = ""
+                    return .handled
+                }
+                dismiss()
+                return .handled
+            }
             .background(
                 KeyHandlingView(
                     onUp: { selectPrevious() },
@@ -77,6 +115,7 @@ private struct ClipboardPanelContent: View {
                     onReturn: { copySelected() },
                     onEscape: {
                         if searchActive { searchActive = false }
+                        else if isEditing { isEditing = false; editedText = "" }
                         else { dismiss() }
                     },
                     isEditing: isEditing
@@ -107,6 +146,9 @@ private struct ClipboardPanelContent: View {
             .onAppear {
                 if selected == nil {
                     selected = filtered.first ?? manager.clipboardItems.first
+                }
+                DispatchQueue.main.async {
+                    isPanelFocused = true
                 }
             }
             .onChange(of: activeFilter) { _, _ in
