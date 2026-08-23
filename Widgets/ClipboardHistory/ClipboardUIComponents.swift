@@ -64,7 +64,7 @@ struct SearchButton: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(isHovered ? Color.accentColor : Color.secondary)
-                .frame(width: 30, height: 30)
+                .frame(width: 28, height: 28)
                 .background(
                     Circle()
                         .fill(isHovered ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
@@ -109,9 +109,9 @@ struct SearchField: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
-        .background(RoundedRectangle(cornerRadius: 20).fill(Color.primary.opacity(0.08)))
+        .padding(.horizontal, 8)
+        .frame(height: 30)
+        .background(RoundedRectangle(cornerRadius: 15).fill(Color.primary.opacity(0.08)))
         .frame(maxWidth: .infinity)
         .onAppear {
             DispatchQueue.main.async { isFocused = true }
@@ -143,13 +143,13 @@ struct SegmentedFilterControl: View {
             let segmentHeight = geo.size.height
 
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color.primary.opacity(0.08))
 
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: 14)
                     .fill(Color(NSColor.windowBackgroundColor))
                     .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    .frame(width: segmentWidth, height: segmentHeight)
+                    .frame(width: max(0, segmentWidth), height: segmentHeight)
                     .offset(x: index * segmentWidth)
                     .animation(.spring(response: 0.3, dampingFraction: 0.78), value: activeFilter)
 
@@ -163,7 +163,7 @@ struct SegmentedFilterControl: View {
                             Image(systemName: filter.icon)
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(activeFilter == filter ? .primary : .secondary)
-                                .frame(width: segmentWidth, height: segmentHeight)
+                                .frame(width: max(0, segmentWidth), height: segmentHeight)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -171,7 +171,7 @@ struct SegmentedFilterControl: View {
                 }
             }
         }
-        .frame(height: 32)
+        .frame(height: 30)
     }
 }
 
@@ -180,60 +180,104 @@ struct SegmentedFilterControl: View {
 struct ItemRow: View {
     let item: ClipboardItem
     let isSelected: Bool
+    var isCompact: Bool = false
     let onTap: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
-                thumbnail
-                    .frame(width: 36, height: 36)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    if !item.displayText.isEmpty {
-                        Text(item.displayText)
-                            .font(.callout.weight(.medium))
-                            .foregroundStyle(isSelected ? .white : .primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    Text(item.typeLabel)
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
-                }
-
-                Spacer(minLength: 0)
-
-                if item.isModified {
-                    Image(systemName: "pencil.line")
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.accentColor)
-                        .help("Modified (Click 'Restore' to revert)")
-                }
-
-                if item.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : Color.accentColor)
-                }
+            if isCompact {
+                compactContent
+            } else {
+                standardContent
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        isSelected
-                            ? Color.accentMuted
-                            : isHovered
-                                ? Color.primary.opacity(0.07)
-                                : Color.clear
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 20))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+    }
+
+    private var compactContent: some View {
+        HStack {
+            Spacer(minLength: 0)
+            ZStack(alignment: .topTrailing) {
+                thumbnail
+                    .frame(width: 32, height: 32)
+                if item.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(isSelected ? .white : Color.accentColor)
+                        .offset(x: 4, y: -4)
+                } else if item.isModified {
+                    Image(systemName: "pencil.line")
+                        .font(.system(size: 8))
+                        .foregroundStyle(isSelected ? .white : Color.accentColor)
+                        .offset(x: 4, y: -4)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(
+                    isSelected
+                        ? Color.accentMuted
+                        : isHovered
+                            ? Color.primary.opacity(0.07)
+                            : Color.clear
+                )
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var standardContent: some View {
+        HStack(spacing: 8) {
+            thumbnail
+                .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 2) {
+                if !item.displayText.isEmpty {
+                    Text(item.displayText)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(isSelected ? .white : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                Text(item.typeLabel)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            if item.isModified {
+                Image(systemName: "pencil.line")
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.accentColor)
+                    .help("Modified (Click 'Restore' to revert)")
+            }
+
+            if item.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .white.opacity(0.7) : Color.accentColor)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    isSelected
+                        ? Color.accentMuted
+                        : isHovered
+                            ? Color.primary.opacity(0.07)
+                            : Color.clear
+                )
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 16))
     }
 
     @ViewBuilder
@@ -244,17 +288,17 @@ struct ItemRow: View {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 iconBadge(item.typeIcon, color: .secondary)
             }
         case .text:
             if let color = item.cachedColor {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(color)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.primary.opacity(0.15), lineWidth: 0.5)
                     )
             } else {
@@ -269,7 +313,7 @@ struct ItemRow: View {
 
     private func iconBadge(_ symbol: String, color: Color) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(color.opacity(isSelected ? 0.35 : 0.12))
             Image(systemName: symbol)
                 .font(.callout)
@@ -298,7 +342,7 @@ struct ItemRow: View {
 
     private func fileBadge(_ symbol: String, color: Color) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(color.opacity(isSelected ? 0.4 : 0.15))
             Image(systemName: symbol)
                 .font(.callout)
@@ -353,8 +397,8 @@ struct ResizableSplitDivider: View {
         )
         .onTapGesture(count: 2) {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                sidebarWidth = 250
-                UserDefaults.standard.set(250.0, forKey: "ClipboardHistory_sidebarWidth")
+                sidebarWidth = 240
+                UserDefaults.standard.set(240.0, forKey: "ClipboardHistory_sidebarWidth")
             }
         }
         .help("Drag to resize sidebar (Double-click to reset)")
