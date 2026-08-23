@@ -32,6 +32,9 @@ private struct ClipboardPanelContent: View {
     @State private var activeFilter: ClipboardFilter = .all
     @State private var searchActive = false
     @State private var searchText = ""
+    @State private var isEditing = false
+    @State private var editedText = ""
+    @FocusState private var isEditorFocused: Bool
     @State private var sidebarWidth: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "ClipboardHistory_sidebarWidth")
         return saved >= 180 && saved <= 440 ? CGFloat(saved) : 280
@@ -184,11 +187,15 @@ private struct ClipboardPanelContent: View {
 
     private func handleTap(_ item: ClipboardItem) {
         if selected?.id == item.id {
-            manager.copyItemToClipboard(item)
-            dismiss()
+            if !isEditing {
+                manager.copyItemToClipboard(item)
+                dismiss()
+            }
         } else {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                 selected = item
+                isEditing = false
+                editedText = ""
             }
         }
     }
@@ -279,59 +286,88 @@ private struct ClipboardPanelContent: View {
     @ViewBuilder
     private func previewContent(_ item: ClipboardItem) -> some View {
         Group {
-            switch item.data {
-            case let .text(text):
-                if let color = item.cachedColor {
-                    VStack(spacing: 16) {
+            if isEditing {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "pencil")
+                            .font(.caption2)
+                            .foregroundStyle(Color.accentColor)
+                        Text("EDITING TEXT")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.accentColor)
                         Spacer()
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(color)
-                            .frame(width: 120, height: 120)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24)
-                                    .stroke(Color.primary.opacity(0.15), lineWidth: 1)
-                            )
-                        Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                        Text("\(editedText.count) chars")
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                    TextEditor(text: $editedText)
+                        .font(.caption.monospaced())
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.textBackgroundColor).opacity(0.6)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor.opacity(0.4), lineWidth: 1))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                        .focused($isEditorFocused)
+                }
+            } else {
+                switch item.data {
+                case let .text(text):
+                    if let color = item.cachedColor {
+                        VStack(spacing: 16) {
+                            Spacer()
+                            RoundedRectangle(cornerRadius: 24)
+                                .fill(color)
+                                .frame(width: 120, height: 120)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 24)
+                                        .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                                )
+                            Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        ScrollView {
+                            Text(text)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(16)
+                        }
+                    }
+
+                case let .image(data):
+                    if let nsImage = NSImage(data: data) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(16)
+                    }
+
+                case let .url(url):
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "link")
+                            .font(.title)
+                            .foregroundStyle(.secondary)
+                        Text(url.absoluteString)
                             .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
-                } else {
-                    ScrollView {
-                        Text(text)
-                            .font(.caption.monospaced())
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(16)
-                    }
-                }
+                    .padding(16)
 
-            case let .image(data):
-                if let nsImage = NSImage(data: data) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(16)
+                case let .fileURL(url):
+                    filePreview(url)
                 }
-
-            case let .url(url):
-                VStack(spacing: 12) {
-                    Spacer()
-                    Image(systemName: "link")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                    Text(url.absoluteString)
-                        .font(.caption.monospaced())
-                        .textSelection(.enabled)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(16)
-
-            case let .fileURL(url):
-                filePreview(url)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -399,42 +435,103 @@ private struct ClipboardPanelContent: View {
     }
 
 
+    @ViewBuilder
     private func actionBar(_ item: ClipboardItem) -> some View {
-        HStack(spacing: 10) {
-            ActionButton(icon: "trash", style: .destructive) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                    manager.removeItem(item)
-                    selected = manager.clipboardItems.first
+        if isEditing {
+            HStack(spacing: 10) {
+                ActionButton(icon: "xmark", style: .destructive) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        isEditing = false
+                        editedText = ""
+                    }
                 }
-            }
+                .help("Cancel editing")
 
-            ActionButton(icon: item.isPinned ? "pin.slash" : "pin", style: .normal) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                    manager.togglePin(item)
+                Spacer()
+
+                ActionButton(icon: "checkmark", style: .accent) {
+                    if let updated = manager.updateItemText(item, newText: editedText) {
+                        selected = updated
+                    }
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        isEditing = false
+                    }
                 }
-            }
+                .help("Save edits")
 
-            Spacer()
-
-            if case let .fileURL(url) = item.data {
-                ActionButton(icon: "folder", style: .normal) {
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                ActionButton(icon: "doc.on.doc.fill", style: .accent) {
+                    if let updated = manager.updateItemText(item, newText: editedText) {
+                        selected = updated
+                        manager.copyItemToClipboard(updated)
+                        dismiss()
+                    }
                 }
+                .help("Save & Copy to Clipboard")
             }
-
-            if case let .url(url) = item.data {
-                ActionButton(icon: "arrow.up.right.square", style: .normal) {
-                    NSWorkspace.shared.open(url)
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+        } else {
+            HStack(spacing: 10) {
+                ActionButton(icon: "trash", style: .destructive) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        manager.removeItem(item)
+                        selected = manager.clipboardItems.first
+                    }
                 }
-            }
+                .help("Delete item")
 
-            ActionButton(icon: "doc.on.doc", style: .accent) {
-                manager.copyItemToClipboard(item)
-                dismiss()
+                ActionButton(icon: item.isPinned ? "pin.slash" : "pin", style: .normal) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        manager.togglePin(item)
+                    }
+                }
+                .help(item.isPinned ? "Unpin item" : "Pin item")
+
+                if case .text(let text) = item.data {
+                    ActionButton(icon: "pencil", style: .normal) {
+                        editedText = text
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            isEditing = true
+                        }
+                        isEditorFocused = true
+                    }
+                    .help("Edit text")
+                } else if case .url(let url) = item.data {
+                    ActionButton(icon: "pencil", style: .normal) {
+                        editedText = url.absoluteString
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            isEditing = true
+                        }
+                        isEditorFocused = true
+                    }
+                    .help("Edit URL")
+                }
+
+                Spacer()
+
+                if case let .fileURL(url) = item.data {
+                    ActionButton(icon: "folder", style: .normal) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                    .help("Reveal in Finder")
+                }
+
+                if case let .url(url) = item.data {
+                    ActionButton(icon: "arrow.up.right.square", style: .normal) {
+                        NSWorkspace.shared.open(url)
+                    }
+                    .help("Open Link")
+                }
+
+                ActionButton(icon: "doc.on.doc", style: .accent) {
+                    manager.copyItemToClipboard(item)
+                    dismiss()
+                }
+                .help("Copy to Clipboard")
             }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
     }
 }
 

@@ -477,6 +477,31 @@ final class ClipboardManagerState: @unchecked Sendable {
         }
     }
 
+    func updateItemText(_ item: ClipboardItem, newText: String) -> ClipboardItem? {
+        guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return nil }
+        let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let updatedData: ClipboardDataType
+        if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")),
+           let url = URL(string: trimmed), url.scheme != nil, url.host != nil {
+            updatedData = .url(url)
+        } else {
+            updatedData = .text(newText)
+        }
+
+        let updatedItem = ClipboardItem(
+            id: item.id,
+            data: updatedData,
+            timestamp: Date(),
+            source: item.source,
+            isPinned: item.isPinned
+        )
+        clipboardItems[idx] = updatedItem
+        if isPersistenceEnabled {
+            storage.save(items: clipboardItems)
+        }
+        return updatedItem
+    }
+
     func togglePin(_ item: ClipboardItem) {
         guard let idx = clipboardItems.firstIndex(where: { $0.id == item.id }) else { return }
         clipboardItems[idx].isPinned.toggle()
