@@ -445,7 +445,8 @@ private struct ClipboardPanelContent: View {
                         editedText = ""
                     }
                 }
-                .help("Cancel editing")
+                .help("Cancel editing (Esc)")
+                .keyboardShortcut(.escape, modifiers: [])
 
                 Spacer()
 
@@ -457,7 +458,8 @@ private struct ClipboardPanelContent: View {
                         isEditing = false
                     }
                 }
-                .help("Save edits")
+                .help("Save edits (⌘Return)")
+                .keyboardShortcut(.return, modifiers: .command)
 
                 ActionButton(icon: "doc.on.doc.fill", style: .accent) {
                     if let updated = manager.updateItemText(item, newText: editedText) {
@@ -466,7 +468,8 @@ private struct ClipboardPanelContent: View {
                         dismiss()
                     }
                 }
-                .help("Save & Copy to Clipboard")
+                .help("Save & Copy (⇧⌘Return)")
+                .keyboardShortcut(.return, modifiers: [.command, .shift])
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
