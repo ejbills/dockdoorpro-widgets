@@ -1,0 +1,17 @@
+{
+    "id": "app-volume-mixer",
+    "name": "Volume Mixer",
+    "author": "ejbills",
+    "description": "Per-app volume control from the dock. Turn any app down, mute it, or boost it past 100%.",
+    "iconSymbol": "slider.vertical.3",
+    "orientations": ["horizontal", "vertical"],
+    "principalClass": "AppVolumeMixerPlugin",
+    "sources": [
+        "AppVolumeMixerPlugin.swift",
+        "AudioProcessCatalog.swift",
+        "AppGainEngine.swift",
+        "AppVolumeMixerModel.swift",
+        "AppVolumeMixerView.swift",
+        "AppVolumeMixerPanel.swift"
+    ]
+}

@@ -267,17 +267,92 @@ Rules, matching the built-in Now Playing volume scroll:
 - Momentum-phase trackpad events are filtered out by the host.
 - `scrollSessionEnded()` fires when the pointer leaves your widget — commit any in-progress state there.
 
+## House style
+
+Widgets in this repo are consistent with each other on purpose. These come up in
+almost every review, so save yourself a round:
+
+**State and refreshing.** Use `@Observable` plus `TimelineView(.periodic(...))`.
+No `ObservableObject` singletons, and no long-lived `Timer` on the main run loop:
+a timer keeps firing when your widget is off screen, a timeline tick doesn't.
+If your dock view and your panel both sample the same thing, throttle it in the
+model (`tick(minimumInterval:)`) so opening the panel doesn't double the work.
+See `ClipboardHistory`, `NetworkMonitor` and `SystemMonitor` for the pattern.
+
+**Fonts.** Panels are a fixed width, so use semantic fonts there: `.headline`,
+`.callout`, `.caption`, `.caption2`. Hardcoded point sizes belong only in the
+dock view, where everything scales off `min(size.width, size.height)`.
+
+**Sizing.** Use the `WidgetMetrics` constants (`contentScale`, `sfSymbolScale`,
+`spacingScale`) rather than inventing your own multipliers.
+
+**English only.** No localization layer. SF Symbols carry most labels anyway.
+Localized strings must never end up as stored values either: a picker whose
+options are translated changes its persisted setting when the system language
+changes.
+
+**Settings.** Read them through `WidgetDefaults` and nothing else. Don't reach
+into `UserDefaults.standard` for `widget.<id>.<key>` yourself, that layout is the
+host's business and not stable API. If `WidgetDefaults` can't store what you
+need, open an issue and I'll add it to the SDK. `settingsSchema()` is a
+declaration: it must never write anything.
+
+Runtime state that isn't a user setting (a timer's end date, a selected
+interface) goes in `UserDefaults.standard` under `<pluginId>.<key>`, which keeps
+it out of the settings namespace.
+
+**No migration code.** Don't carry old key names, old option values or one-shot
+rewrites forward. If a change is breaking, it breaks and users re-enter their
+settings. That is much cheaper than migration code nobody can ever delete.
+
+**Your widget's `id` is its identity.** It's how installs are matched for
+updates. Never repurpose an existing widget's id for a different product;
+everyone who installed the old one would silently receive the new one. A new
+product means a new id and a new submission.
+
+**Metadata matches.** `author` in `widget.json` is your GitHub username, and the
+plugin's `name` / `widgetDescription` match the `name` / `description` there.
+
+**Folder contents.** `widget.json` plus `.swift` files, nothing else. No README,
+changelog, docs, screenshots, examples or scripts.
+
+**Updating an existing widget?** Edit its files in place. Don't add a second
+`widget.json` or a duplicate plugin class alongside the originals.
+
+End every file with a newline.
+
 ## What you can't do
 
 I review every PR manually. These will get rejected:
 
 - `Process`, `NSTask`, `dlopen`, `dlsym`, `system()`, `popen()` - no spawning processes
+- private API of any kind, not just private framework imports. `@_silgen_name`
+  bindings to undocumented symbols get past the lint but are the same thing and
+  will be caught in review
+- installers, LaunchAgents, helper daemons or anything else that moves banned
+  work outside the widget process. Routing around a rule is still breaking it
+- `CGEvent` taps, global hotkeys, and app-wide event monitors.
+  `addLocalMonitorForEvents` returning `nil` swallows the event for the whole
+  app, not just your view. Scope input to your view instead, e.g. a small
+  `NSViewRepresentable` overriding `scrollWheel(with:)` in a `.background()`:
+  AppKit only delivers that to the view under the pointer
+- your own `NSPanel` or `NSWindow`. Panels go through `makePanelBody`
+- file system writes, and writing to another app's config files in particular
+- reading credentials, tokens or keychain material. Handling somebody's OAuth
+  refresh token is not something I can maintain on your behalf
+- terminating or signalling other processes. Listing them is fine, acting on
+  them is not
 - network requests without a good reason
 - file system access outside standard read-only locations
-- private framework imports
 - applying `.frame()` on your root view (the host does this)
 
-CI also runs a lint pass for these.
+CI lints for a few of these. The rest are on review, so don't read a green check
+as approval.
+
+A note on the first-party widgets: one or two of them use a private symbol where
+there is genuinely no public equivalent (`AppVolumeMixer` resolves which app a
+WebKit process is playing for). Those are mine to maintain and to fix when a
+macOS release breaks them, which is why they're not precedent for a submission.
 
 ## Testing locally
 
