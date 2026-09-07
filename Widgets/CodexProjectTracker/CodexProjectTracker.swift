@@ -49,7 +49,10 @@ private struct CodexTrackerCompactView: View {
     @State private var snapshot = CodexSnapshot.empty
 
     private var dim: CGFloat { min(size.width, size.height) }
-    private var iconWidth: CGFloat { min(dim * 0.74, 34) }
+    // The host clips content to the dock card, so leave a margin rather than
+    // running the icon into the slot edge.
+    private var contentInset: CGFloat { max(2, dim * 0.05) }
+    private var iconWidth: CGFloat { min(dim * 0.60, 30) }
     private var compactTitleSize: CGFloat { max(10, min(dim * 0.23, 13)) }
     private var titleSize: CGFloat { isVertical ? max(11, min(dim * 0.23, 14)) : max(14, min(dim * 0.30, 17)) }
     private var subtitleSize: CGFloat { isVertical ? max(9, min(dim * 0.18, 11)) : max(10, min(dim * 0.22, 12)) }
@@ -65,6 +68,7 @@ private struct CodexTrackerCompactView: View {
                 compactLayout
             }
         }
+        .padding(contentInset)
         .task {
             while !Task.isCancelled {
                 snapshot = await CodexTrackerStore.snapshot()
