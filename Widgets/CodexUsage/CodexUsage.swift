@@ -2,11 +2,13 @@ import DockDoorWidgetSDK
 import Foundation
 import SwiftUI
 
+let codexUsageWidgetId = "codex-usage"
+
 final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
-    var id: String { "codex-usage" }
+    var id: String { codexUsageWidgetId }
     var name: String { "Codex Usage" }
     var iconSymbol: String { "gauge.with.dots.needle.67percent" }
-    var widgetDescription: String { "Read-only Codex usage limits, credits, and reset countdowns" }
+    var widgetDescription: String { "Read-only Codex usage with model-colored themes and an optional animated Astra ring" }
     var supportedOrientations: [WidgetOrientation] { [.horizontal, .vertical] }
 
     @MainActor
@@ -21,20 +23,13 @@ final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
 
     func settingsSchema() -> [WidgetSetting] {
         [
-            .toggle(
-                key: "rainbowUsageRing",
-                label: "Rainbow Usage Ring",
-                defaultValue: true
+            .picker(
+                key: "modelTheme",
+                label: "Widget Theme",
+                options: CodexTheme.allCases.map(\.rawValue),
+                defaultValue: "Luna"
             ),
         ]
-    }
-}
-
-private enum CodexUsagePreferences {
-    static let widgetID = "codex-usage"
-
-    static var rainbowUsageRing: Bool {
-        WidgetDefaults.bool(key: "rainbowUsageRing", widgetId: widgetID, default: true)
     }
 }
 
@@ -43,14 +38,17 @@ private struct CodexUsageCompactView: View {
     let isVertical: Bool
     @State private var snapshot = CodexUsageSnapshot.empty
     @State private var now = Date()
-    @State private var rainbow = CodexUsagePreferences.rainbowUsageRing
+    private var theme: CodexTheme { CodexTheme.current(widgetId: codexUsageWidgetId) }
 
     private var dim: CGFloat { min(size.width, size.height) }
     private var isExtended: Bool {
         isVertical ? size.height > size.width * 1.5 : size.width > size.height * 1.5
     }
     private var card: CodexUsageCard { snapshot.card(at: now) }
-    private var ringSize: CGFloat { min(max(dim * 0.70, 24), 38) }
+    // The host clips content to the dock card, so leave a margin rather than
+    // running the ring and its glow into the slot edge.
+    private var contentInset: CGFloat { max(2, dim * 0.05) }
+    private var ringSize: CGFloat { min(max(dim * 0.60, 20), 34) }
 
     var body: some View {
         Group {
@@ -60,6 +58,7 @@ private struct CodexUsageCompactView: View {
                 compactLayout
             }
         }
+        .padding(contentInset)
         .task {
             await refresh()
             while !Task.isCancelled {
@@ -71,7 +70,6 @@ private struct CodexUsageCompactView: View {
         .task {
             while !Task.isCancelled {
                 now = Date()
-                rainbow = CodexUsagePreferences.rainbowUsageRing
                 try? await Task.sleep(for: .seconds(2))
             }
         }
@@ -83,7 +81,7 @@ private struct CodexUsageCompactView: View {
                 percentRemaining: card.percentRemaining ?? snapshot.primaryPercent,
                 size: ringSize,
                 lineWidth: max(3, dim * 0.055),
-                rainbow: rainbow
+                theme: theme
             )
             Text(card.shortLabel)
                 .font(.system(size: max(9, min(dim * 0.21, 12)), weight: .bold, design: .rounded))
@@ -101,7 +99,7 @@ private struct CodexUsageCompactView: View {
                         percentRemaining: card.percentRemaining ?? snapshot.primaryPercent,
                         size: ringSize,
                         lineWidth: max(3, dim * 0.052),
-                        rainbow: rainbow
+                        theme: theme
                     )
                     usageLabels(alignment: .center)
                 }
@@ -111,7 +109,7 @@ private struct CodexUsageCompactView: View {
                         percentRemaining: card.percentRemaining ?? snapshot.primaryPercent,
                         size: ringSize,
                         lineWidth: max(3, dim * 0.052),
-                        rainbow: rainbow
+                        theme: theme
                     )
                     usageLabels(alignment: .leading)
                 }
@@ -139,14 +137,13 @@ private struct CodexUsageCompactView: View {
 
     private func refresh() async {
         snapshot = await CodexUsageStore.read()
-        rainbow = CodexUsagePreferences.rainbowUsageRing
     }
 }
 
 private struct CodexUsagePanelView: View {
     let dismiss: () -> Void
     @State private var snapshot = CodexUsageSnapshot.empty
-    @State private var rainbow = CodexUsagePreferences.rainbowUsageRing
+    private var theme: CodexTheme { CodexTheme.current(widgetId: codexUsageWidgetId) }
     @State private var now = Date()
 
     var body: some View {
@@ -167,7 +164,7 @@ private struct CodexUsagePanelView: View {
                     percentRemaining: snapshot.primaryPercent,
                     size: 72,
                     lineWidth: 7,
-                    rainbow: rainbow
+                    theme: theme
                 )
                 VStack(alignment: .leading, spacing: 4) {
                     Text(snapshot.primaryTitle)
@@ -183,7 +180,8 @@ private struct CodexUsagePanelView: View {
                 Spacer(minLength: 0)
             }
             .padding(10)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(theme.accent.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.accent.opacity(0.18)))
 
             HStack(spacing: 10) {
                 UsageStat(title: "Limits", value: "\(snapshot.limits.count)")
@@ -216,10 +214,13 @@ private struct CodexUsagePanelView: View {
                                 .font(.caption.monospacedDigit().weight(.bold))
                             Text(limit.resetLabel)
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .lineLimit(1)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
 
@@ -229,6 +230,9 @@ private struct CodexUsagePanelView: View {
         }
         .padding(14)
         .frame(width: 350)
+        .background(CodexThemeBackground(theme: theme))
+        .tint(theme.accent)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .task {
             await refresh()
             while !Task.isCancelled {
@@ -247,7 +251,6 @@ private struct CodexUsagePanelView: View {
 
     private func refresh() async {
         snapshot = await CodexUsageStore.read()
-        rainbow = CodexUsagePreferences.rainbowUsageRing
     }
 }
 
@@ -255,57 +258,59 @@ private struct UsageRing: View {
     let percentRemaining: Double?
     let size: CGFloat
     let lineWidth: CGFloat
-    let rainbow: Bool
+    let theme: CodexTheme
+    @Environment(\.colorScheme) private var colorScheme
 
-    private var hasData: Bool { percentRemaining != nil }
-    private var clamped: Double { min(max(percentRemaining ?? 0, 0), 1) }
-    private var fallbackColor: Color {
-        guard hasData else { return .gray }
+    private var isDark: Bool { colorScheme == .dark }
+    private var hasData: Bool { percentRemaining?.isFinite == true }
+    private var clamped: Double { hasData ? min(max(percentRemaining ?? 0, 0), 1) : 0 }
+    /// The theme owns the healthy palette; a low budget still overrides it,
+    /// since in the dock the ring is the only thing the user can read.
+    private var warningColor: Color? {
+        guard hasData else { return nil }
         switch clamped {
-        case 0.45...: return Color(red: 0.13, green: 0.72, blue: 1.00)
-        case 0.20..<0.45: return .orange
+        case 0.45...: return nil
+        case 0.20 ..< 0.45: return .orange
         default: return .red
         }
     }
     private var colors: [Color] {
-        rainbow
-            ? [
-                Color(red: 1.00, green: 0.18, blue: 0.34),
-                Color(red: 1.00, green: 0.55, blue: 0.16),
-                Color(red: 1.00, green: 0.90, blue: 0.18),
-                Color(red: 0.18, green: 0.86, blue: 0.36),
-                Color(red: 0.12, green: 0.70, blue: 1.00),
-                Color(red: 0.48, green: 0.34, blue: 1.00),
-                Color(red: 0.95, green: 0.28, blue: 0.86),
-                Color(red: 1.00, green: 0.18, blue: 0.34),
-            ]
-            : [fallbackColor.opacity(0.72), fallbackColor, .cyan.opacity(0.85)]
+        guard let warningColor else { return theme.colors }
+        return [warningColor.opacity(0.72), warningColor, warningColor.opacity(0.92)]
     }
+    private var glowColor: Color { warningColor ?? theme.accent }
+    private var glowBlur: CGFloat { max(2, lineWidth * 0.55) }
+    // The host clips widget content to the dock card, so the blurred glow and
+    // the drop shadow have to stay inside the frame it hands us.
+    private var glowInset: CGFloat { lineWidth * 0.28 + glowBlur * 0.6 }
 
     var body: some View {
         ZStack {
-            Circle()
-                .stroke(.white.opacity(rainbow ? 0.10 : 0.14), lineWidth: lineWidth)
-            if hasData {
+            ZStack {
                 Circle()
-                    .trim(from: 0, to: clamped)
-                    .stroke(
-                        AngularGradient(colors: colors, center: .center),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                if rainbow {
+                    .stroke(theme.accent.opacity(0.14), lineWidth: lineWidth)
+                if hasData {
                     Circle()
                         .trim(from: 0, to: clamped)
                         .stroke(
                             AngularGradient(colors: colors, center: .center),
-                            style: StrokeStyle(lineWidth: lineWidth * 1.55, lineCap: .round)
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .blur(radius: max(2, lineWidth * 0.55))
-                        .opacity(0.55)
+                    if clamped > 0 {
+                        Circle()
+                            .trim(from: 0, to: clamped)
+                            .stroke(
+                                AngularGradient(colors: colors, center: .center),
+                                style: StrokeStyle(lineWidth: lineWidth * 1.55, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .blur(radius: glowBlur)
+                            .opacity(0.55)
+                    }
                 }
             }
+            .padding(glowInset)
             VStack(spacing: -1) {
                 Text(hasData ? "\(Int((clamped * 100).rounded()))" : "--")
                     .font(.system(size: size * 0.34, weight: .black, design: .rounded))
@@ -319,8 +324,13 @@ private struct UsageRing: View {
             .minimumScaleFactor(0.65)
         }
         .frame(width: size, height: size)
-        .background(.black.opacity(0.16), in: Circle())
-        .shadow(color: hasData ? (rainbow ? Color.pink : fallbackColor).opacity(rainbow ? 0.48 : 0.30) : .clear, radius: rainbow ? 8 : 5, y: 1)
+        .background(isDark ? Color.black.opacity(0.16) : Color.white.opacity(0.55), in: Circle())
+        .shadow(color: hasData ? glowColor.opacity(0.42) : .clear, radius: max(2, size * 0.09), y: 1)
+        .overlay {
+            if theme == .astra && clamped > 0 {
+                AstraRingSparkles(progress: clamped, ringSize: size - glowInset * 2, lineWidth: lineWidth, canvasSize: size)
+            }
+        }
         .accessibilityLabel("Codex usage remaining")
         .accessibilityValue(hasData ? "\(Int((clamped * 100).rounded())) percent" : "No data")
     }
@@ -423,10 +433,17 @@ private struct CodexUsageLimit: Identifiable {
     }
 
     var percentLabel: String { "\(Int((percentRemaining * 100).rounded()))% left" }
+    /// Model-prefixed names ("Astra 5h", "Astra Weekly") must keep their window
+    /// suffix, otherwise the dock cycler shows two cards labelled the same.
     var shortName: String {
-        if name.localizedCaseInsensitiveContains("spark") { return "Spark" }
-        if name.localizedCaseInsensitiveContains("general") { return "General" }
-        return name.count > 10 ? String(name.prefix(10)) : name
+        var window = name
+        if let astra = name.range(of: "astra ", options: [.caseInsensitive, .anchored]) {
+            window = String(name[astra.upperBound...]).trimmingCharacters(in: .whitespaces)
+        }
+        if window.isEmpty { return "Astra" }
+        if window.localizedCaseInsensitiveContains("spark") { return "Spark" }
+        if window.localizedCaseInsensitiveContains("general") { return "General" }
+        return window.count > 10 ? String(window.prefix(10)) : window
     }
     var tint: Color {
         switch percentRemaining {
@@ -506,7 +523,8 @@ private enum CodexUsageStore {
     }
 
     private static func defaultSymbol(for name: String) -> String {
-        name.localizedCaseInsensitiveContains("spark") ? "sparkles" : "gauge.with.dots.needle.67percent"
+        (name.localizedCaseInsensitiveContains("spark") || name.localizedCaseInsensitiveContains("astra"))
+            ? "sparkles" : "gauge.with.dots.needle.67percent"
     }
 
     private static func parseDate(_ value: String?) -> Date? {
@@ -576,11 +594,14 @@ private enum CodexSessionsStore {
         else { return nil }
 
         var limits: [CodexUsageLimit] = []
+        let isAstra = [rateLimits.limitName, rateLimits.limitID].compactMap { $0 }
+            .contains { $0.localizedCaseInsensitiveContains("astra") }
+        let prefix = isAstra ? "Astra " : ""
         if let window = rateLimits.primary, let used = window.usedPercent {
-            limits.append(limit(named: windowName(minutes: window.windowMinutes, fallback: "5h"), usedPercent: used, resetsAt: window.resetsAt))
+            limits.append(limit(named: prefix + windowName(minutes: window.windowMinutes, fallback: "5h"), usedPercent: used, resetsAt: window.resetsAt))
         }
         if let window = rateLimits.secondary, let used = window.usedPercent {
-            limits.append(limit(named: windowName(minutes: window.windowMinutes, fallback: "Weekly"), usedPercent: used, resetsAt: window.resetsAt))
+            limits.append(limit(named: prefix + windowName(minutes: window.windowMinutes, fallback: "Weekly"), usedPercent: used, resetsAt: window.resetsAt))
         }
         guard !limits.isEmpty else { return nil }
         return CodexUsageSnapshot(limits: limits, creditsBalance: nil)
@@ -593,7 +614,7 @@ private enum CodexSessionsStore {
             percentRemaining: 1 - usedPercent / 100,
             resetDate: resetDate,
             resetLabel: resetDate.map { $0.formatted(.dateTime.month(.abbreviated).day()) } ?? "No reset date",
-            systemImage: "gauge.with.dots.needle.67percent"
+            systemImage: name.localizedCaseInsensitiveContains("astra") ? "sparkles" : "gauge.with.dots.needle.67percent"
         )
     }
 
@@ -623,6 +644,14 @@ private enum CodexSessionsStore {
     private struct RateLimits: Decodable {
         let primary: Window?
         let secondary: Window?
+        let limitName: String?
+        let limitID: String?
+
+        enum CodingKeys: String, CodingKey {
+            case primary, secondary
+            case limitName = "limit_name"
+            case limitID = "limit_id"
+        }
 
         struct Window: Decodable {
             let usedPercent: Double?

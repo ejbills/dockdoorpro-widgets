@@ -2,9 +2,16 @@
     "id": "codex-usage",
     "name": "Codex Usage",
     "author": "appleforever11",
-    "description": "Read-only Codex usage limits, credits, and reset countdowns",
+    "description": "Read-only Codex usage with model-colored themes and an optional animated Astra ring",
     "iconSymbol": "gauge.with.dots.needle.67percent",
-    "orientations": ["horizontal", "vertical"],
+    "orientations": [
+        "horizontal",
+        "vertical"
+    ],
     "principalClass": "CodexUsagePlugin",
-    "sources": ["CodexUsage.swift"]
+    "sources": [
+        "CodexUsage.swift",
+        "CodexTheme.swift",
+        "AstraRingSparkles.swift"
+    ]
 }
