@@ -19,6 +19,7 @@ enum MixerGlyph {
     }
 }
 
+@MainActor
 struct AppVolumeMixerView: View {
     let size: CGSize
     let isVertical: Bool

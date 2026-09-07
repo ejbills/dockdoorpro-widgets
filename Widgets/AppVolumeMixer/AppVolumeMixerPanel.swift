@@ -2,6 +2,7 @@ import AppKit
 import DockDoorWidgetSDK
 import SwiftUI
 
+@MainActor
 struct AppVolumeMixerPanel: View {
     let dismiss: () -> Void
     let widgetId: String
