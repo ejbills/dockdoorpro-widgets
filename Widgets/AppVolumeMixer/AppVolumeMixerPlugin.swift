@@ -5,7 +5,7 @@ final class AppVolumeMixerPlugin: WidgetPlugin, DockDoorWidgetProvider, WidgetSc
     var id: String { "app-volume-mixer" }
     var name: String { "Volume Mixer" }
     var iconSymbol: String { "slider.vertical.3" }
-    var widgetDescription: String { "Per-app volume control from the dock. Turn any app down, mute it, or boost it past 100%." }
+    var widgetDescription: String { "Per-app volume control from the dock. Turn any app down, mute it, or optionally boost it past 100%." }
     var supportedOrientations: [WidgetOrientation] { [.horizontal, .vertical] }
 
     @MainActor private lazy var model = AppVolumeMixerModel(widgetId: id)
