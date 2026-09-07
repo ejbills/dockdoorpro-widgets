@@ -202,13 +202,16 @@ final class AppVolumeMixerModel {
 
         buildQueue.async { [weak self] in
             let engine = AppGainEngine(audioObjects: objects, gain: Float(gain), outputDeviceUID: outputUID)
+            // Bound here rather than unwrapped on the main queue: the weak
+            // capture itself cannot be read from a second, nested closure.
+            let model = self
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard let self else {
+                    guard let model else {
                         engine?.stop()
                         return
                     }
-                    self.install(engine, for: key, token: token)
+                    model.install(engine, for: key, token: token)
                 }
             }
         }
