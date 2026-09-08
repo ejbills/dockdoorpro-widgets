@@ -2,6 +2,7 @@
 """Generate manifest.json from all widget.json files."""
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -21,6 +22,18 @@ def sha256_of_sources(widget_dir: Path) -> str:
             h.update(src.name.encode())
             h.update(src.read_bytes())
     return h.hexdigest()
+
+
+def first_published(widget_json: Path) -> str | None:
+    """ISO date of the commit that added the widget, from git history."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "--diff-filter=A", "--format=%cI", "--", str(widget_json)],
+            capture_output=True, text=True, check=True,
+        ).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    return out[-1] if out else None
 
 
 def main():
@@ -72,7 +85,12 @@ def main():
             "orientations": orientations,
             "maxSlotSpan": max_slot_span,
             "bundleFilename": bundle_name + ".zip",
+            "sourceDirectory": widget_dir.name,
         }
+
+        added_at = first_published(widget_json)
+        if added_at:
+            entry["addedAt"] = added_at
 
         if requires_level is not None:
             entry["requiresFeatureLevel"] = requires_level
