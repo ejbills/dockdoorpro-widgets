@@ -1,10 +1,42 @@
 import Foundation
 
+enum VolumeKind {
+    case internalDrive
+    case external
+    case removable
+    case network
+
+    var symbolName: String {
+        switch self {
+        case .internalDrive: return "internaldrive"
+        case .external: return "externaldrive"
+        case .removable: return "sdcard"
+        case .network: return "externaldrive.connected.to.line.below"
+        }
+    }
+}
+
 struct VolumeInfo: Identifiable {
     let id: String
+    let url: URL
     let name: String
     let totalBytes: Int64
     let freeBytes: Int64
+    let isInternal: Bool
+    let isRemovable: Bool
+    let isEjectable: Bool
+    let isLocal: Bool
+
+    var kind: VolumeKind {
+        if !isLocal { return .network }
+        if isInternal { return .internalDrive }
+        if isRemovable { return .removable }
+        return .external
+    }
+
+    var canEject: Bool {
+        isEjectable && !isInternal
+    }
 
     var totalGB: Double { Double(totalBytes) / 1_000_000_000 }
     var freeGB: Double { Double(freeBytes) / 1_000_000_000 }
@@ -52,10 +84,13 @@ enum StorageVolumeSnapshot {
     private static let resourceKeys: Set<URLResourceKey> = [
         .volumeAvailableCapacityForImportantUsageKey,
         .volumeAvailableCapacityKey,
+        .volumeIsEjectableKey,
+        .volumeIsInternalKey,
+        .volumeIsLocalKey,
+        .volumeIsRemovableKey,
         .volumeLocalizedNameKey,
         .volumeNameKey,
         .volumeTotalCapacityKey,
-        .volumeURLForRemountingKey,
     ]
 
     private static func volumeInfo(for url: URL) -> VolumeInfo? {
@@ -71,13 +106,17 @@ enum StorageVolumeSnapshot {
         let name = values.volumeLocalizedName
             ?? values.volumeName
             ?? FileManager.default.displayName(atPath: url.path)
-        let id = values.volumeURLForRemounting?.path ?? url.path
 
         return VolumeInfo(
-            id: id,
+            id: url.path,
+            url: url,
             name: name,
             totalBytes: Int64(total),
-            freeBytes: max(free, 0)
+            freeBytes: max(free, 0),
+            isInternal: values.volumeIsInternal ?? false,
+            isRemovable: values.volumeIsRemovable ?? false,
+            isEjectable: values.volumeIsEjectable ?? false,
+            isLocal: values.volumeIsLocal ?? true
         )
     }
 }

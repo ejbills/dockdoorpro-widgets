@@ -129,6 +129,8 @@ for WIDGET_DIR in "${WIDGET_DIRS[@]}"; do
 </plist>
 PLIST
 
+    codesign -f -s - "$BUNDLE_DIR" 2>&1
+
     cd "$BUILD_DIR"
     zip -qr "${WIDGET_NAME}.bundle.zip" "${WIDGET_NAME}.bundle"
     cd "$ROOT_DIR"
