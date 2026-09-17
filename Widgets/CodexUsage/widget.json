@@ -2,7 +2,7 @@
     "id": "codex-usage",
     "name": "Codex Usage",
     "author": "appleforever11",
-    "description": "Read-only Codex usage with current model and reasoning, model-colored themes, and an optional animated Astra ring",
+    "description": "Read-only Codex dashboard with usage limits, sampled token analytics, model themes, and movable cards",
     "iconSymbol": "gauge.with.dots.needle.67percent",
     "orientations": [
         "horizontal",
@@ -12,6 +12,11 @@
     "sources": [
         "CodexUsage.swift",
         "CodexTheme.swift",
-        "AstraRingSparkles.swift"
+        "AstraRingSparkles.swift",
+        "CodexUsagePanel.swift",
+        "CodexIdentityArtwork.swift",
+        "CodexUsageAnalytics.swift",
+        "CodexDashboardLayout.swift",
+        "CodexDashboardCards.swift"
     ]
 }
