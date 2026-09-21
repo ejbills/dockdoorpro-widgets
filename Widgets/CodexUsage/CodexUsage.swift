@@ -1,24 +1,27 @@
 import DockDoorWidgetSDK
 import Foundation
+import Observation
 import SwiftUI
 
 let codexUsageWidgetId = "codex-usage"
 
 final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
+    @MainActor private lazy var model = CodexUsageModel()
+
     var id: String { codexUsageWidgetId }
     var name: String { "Codex Usage" }
     var iconSymbol: String { "gauge.with.dots.needle.67percent" }
-    var widgetDescription: String { "Read-only Codex usage with current model and reasoning, model-colored themes, and an optional animated Astra ring" }
+    var widgetDescription: String { "Read-only Codex dashboard with usage limits, sampled token analytics, model themes, and movable cards" }
     var supportedOrientations: [WidgetOrientation] { [.horizontal, .vertical] }
 
     @MainActor
     func makeBody(size: CGSize, isVertical: Bool) -> AnyView {
-        AnyView(CodexUsageCompactView(size: size, isVertical: isVertical))
+        AnyView(CodexUsageCompactView(size: size, isVertical: isVertical, model: model))
     }
 
     @MainActor
     func makePanelBody(dismiss: @escaping () -> Void) -> AnyView? {
-        AnyView(CodexUsagePanelView(dismiss: dismiss))
+        AnyView(CodexUsagePanelView(model: model, dismiss: dismiss))
     }
 
     func settingsSchema() -> [WidgetSetting] {
@@ -29,14 +32,18 @@ final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
                 options: CodexTheme.allCases.map(\.rawValue),
                 defaultValue: "Luna"
             ),
+            .picker(key: "cardDensity", label: "Card Density", options: ["Compact", "Standard", "Spacious"], defaultValue: "Standard"),
+            .toggle(key: "animateArtwork", label: "Animate Model Artwork", defaultValue: true),
         ]
     }
 }
 
+@MainActor
 private struct CodexUsageCompactView: View {
     let size: CGSize
     let isVertical: Bool
-    @State private var snapshot = CodexUsageSnapshot.empty
+    let model: CodexUsageModel
+    private var snapshot: CodexUsageSnapshot { model.snapshot }
     @State private var now = Date()
     private var theme: CodexTheme { CodexTheme.current(widgetId: codexUsageWidgetId) }
 
@@ -51,6 +58,7 @@ private struct CodexUsageCompactView: View {
     private var ringSize: CGFloat { min(max(dim * 0.60, 20), 34) }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 2)) { timeline in
         Group {
             if isExtended {
                 extendedLayout
@@ -59,19 +67,10 @@ private struct CodexUsageCompactView: View {
             }
         }
         .padding(contentInset)
-        .task {
-            await refresh()
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { break }
-                await refresh()
-            }
+        .task(id: timeline.date) {
+            now = timeline.date
+            await model.tick()
         }
-        .task {
-            while !Task.isCancelled {
-                now = Date()
-                try? await Task.sleep(for: .seconds(2))
-            }
         }
     }
 
@@ -135,130 +134,9 @@ private struct CodexUsageCompactView: View {
         .layoutPriority(1)
     }
 
-    private func refresh() async {
-        snapshot = await CodexUsageStore.read()
-    }
 }
 
-private struct CodexUsagePanelView: View {
-    let dismiss: () -> Void
-    @State private var snapshot = CodexUsageSnapshot.empty
-    private var theme: CodexTheme { CodexTheme.current(widgetId: codexUsageWidgetId) }
-    @State private var now = Date()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Label("Codex Usage", systemImage: "gauge.with.dots.needle.67percent")
-                    .font(.headline)
-                Spacer()
-                Button(action: dismiss) {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 12) {
-                UsageRing(
-                    percentRemaining: snapshot.primaryPercent,
-                    size: 72,
-                    lineWidth: 7,
-                    theme: theme
-                )
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(snapshot.primaryTitle)
-                        .font(.title3.weight(.bold))
-                    Text(snapshot.primarySubtitle)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    Text(snapshot.resetSummary(now: now))
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.tertiary)
-                    Text(snapshot.modelSummary)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(theme.accent)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(10)
-            .background(theme.accent.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.accent.opacity(0.18)))
-
-            HStack(spacing: 10) {
-                UsageStat(title: "Limits", value: "\(snapshot.limits.count)")
-                UsageStat(title: "Credits", value: snapshot.creditsBalance ?? "-")
-                UsageStat(title: "Source", value: "Local")
-            }
-
-            VStack(alignment: .leading, spacing: 7) {
-                Text("Usage Limits")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                if snapshot.limits.isEmpty {
-                    Text("No local usage data yet - run a Codex session to record limits")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-
-                ForEach(snapshot.limits) { limit in
-                    HStack(spacing: 8) {
-                        Image(systemName: limit.systemImage)
-                            .frame(width: 16)
-                            .foregroundStyle(limit.tint)
-                        Text(limit.name)
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                        Spacer(minLength: 4)
-                        VStack(alignment: .trailing, spacing: 1) {
-                            Text(limit.percentLabel)
-                                .font(.caption.monospacedDigit().weight(.bold))
-                            Text(limit.resetLabel)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .lineLimit(1)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-            }
-
-            Text("Read-only local snapshot")
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(14)
-        .frame(width: 350)
-        .background(CodexThemeBackground(theme: theme))
-        .tint(theme.accent)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .task {
-            await refresh()
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { break }
-                await refresh()
-            }
-        }
-        .task {
-            while !Task.isCancelled {
-                now = Date()
-                try? await Task.sleep(for: .seconds(30))
-            }
-        }
-    }
-
-    private func refresh() async {
-        snapshot = await CodexUsageStore.read()
-    }
-}
-
-private struct UsageRing: View {
+struct UsageRing: View {
     let percentRemaining: Double?
     let size: CGFloat
     let lineWidth: CGFloat
@@ -340,7 +218,7 @@ private struct UsageRing: View {
     }
 }
 
-private struct UsageStat: View {
+struct UsageStat: View {
     let title: String
     let value: String
 
@@ -360,7 +238,7 @@ private struct UsageStat: View {
     }
 }
 
-private struct CodexUsageSnapshot {
+struct CodexUsageSnapshot {
     let limits: [CodexUsageLimit]
     let creditsBalance: String?
     let modelContext: CodexModelContext?
@@ -430,14 +308,14 @@ private struct CodexUsageSnapshot {
     }
 }
 
-private struct CodexUsageCard {
+struct CodexUsageCard {
     let title: String
     let subtitle: String
     let shortLabel: String
     let percentRemaining: Double?
 }
 
-private struct CodexModelContext {
+struct CodexModelContext {
     let model: String?
     let reasoning: String?
 
@@ -481,7 +359,7 @@ private struct CodexModelContext {
     }
 }
 
-private struct CodexUsageLimit: Identifiable {
+struct CodexUsageLimit: Identifiable {
     let id: String
     let name: String
     let percentRemaining: Double
@@ -524,7 +402,7 @@ private enum CodexUsageStore {
     private static let usageURL = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".codex/usage.json")
 
-    static func read() async -> CodexUsageSnapshot {
+    static func read() -> CodexUsageSnapshot {
         // usage.json is an optional override for people maintaining the file
         // with their own tooling; Codex's own session logs are the default source.
         if let override = readUsageFile() {
@@ -613,7 +491,7 @@ private enum CodexUsageStore {
 /// Reads the newest `rate_limits` snapshot Codex records in its own session
 /// rollout logs (`~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`). Read-only;
 /// data is as fresh as the user's last Codex turn.
-private enum CodexSessionsStore {
+enum CodexSessionsStore {
     private static let sessionsURL = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".codex/sessions")
 
@@ -634,7 +512,7 @@ private enum CodexSessionsStore {
 
     // Directory and file names sort chronologically (YYYY/MM/DD, timestamped
     // filenames), so descending lexical order walks newest-first.
-    private static func recentRolloutFiles(limit: Int) -> [URL] {
+    static func recentRolloutFiles(limit: Int) -> [URL] {
         let fm = FileManager.default
         func children(_ url: URL) -> [URL] {
             ((try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? [])
@@ -893,5 +771,36 @@ private struct CodexUsageLimitRecord: Decodable {
         case remaining
         case limit
         case systemImage
+    }
+}
+
+/// Shared by this plugin's dock and panel; concurrent timeline ticks coalesce.
+@Observable
+@MainActor
+final class CodexUsageModel {
+    private(set) var snapshot = CodexUsageSnapshot.empty
+    private(set) var lastRead: Date?
+    private(set) var analytics = CodexAnalyticsSnapshot.empty
+    var layout = CodexDashboardLayout.restore() {
+        didSet { layout.save() }
+    }
+    private let analyticsReader = CodexUsageAnalyticsReader()
+    private var isReading = false
+    private var isReadingAnalytics = false
+
+    func tickAnalytics() async {
+        guard !isReadingAnalytics else { return }
+        isReadingAnalytics = true
+        analytics = await analyticsReader.read()
+        isReadingAnalytics = false
+    }
+
+    func tick(minimumInterval: TimeInterval = 5) async {
+        guard !isReading, lastRead.map({ Date().timeIntervalSince($0) >= minimumInterval }) ?? true else { return }
+        isReading = true
+        let value = await Task.detached(priority: .utility) { CodexUsageStore.read() }.value
+        snapshot = value
+        lastRead = Date()
+        isReading = false
     }
 }
