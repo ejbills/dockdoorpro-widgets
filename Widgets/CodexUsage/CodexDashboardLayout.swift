@@ -1,7 +1,4 @@
 import Foundation
-import SwiftUI
-import AppKit
-import DockDoorWidgetSDK
 
 enum CodexDashboardPage: String, CaseIterable, Identifiable {
     case overview = "Overview", activity = "Activity", models = "Models", health = "Health"
@@ -52,28 +49,31 @@ struct CodexDashboardLayout {
             (page, CodexDashboardCard.allCases.filter { $0.page == page })
         }))
     }
+
+    /// Card placement is runtime state, not a user setting, so it lives under
+    /// `<pluginId>.<key>` like NetworkMonitor's selected interface.
+    private static let defaultsKey = "\(codexUsageWidgetId).layout"
+
+    static func restore() -> Self {
+        guard let stored = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: [String]] else { return .initial }
+        var layout = Self(pages: Dictionary(uniqueKeysWithValues: CodexDashboardPage.allCases.map { page in
+            (page, (stored[page.rawValue] ?? []).compactMap(CodexDashboardCard.init(rawValue:)))
+        }))
+        let placed = Set(layout.pages.values.joined())
+        for card in CodexDashboardCard.allCases where !placed.contains(card) {
+            layout.pages[card.page, default: []].append(card)
+        }
+        return layout
+    }
+
+    func save() {
+        let stored = Dictionary(uniqueKeysWithValues: pages.map { ($0.key.rawValue, $0.value.map(\.rawValue)) })
+        UserDefaults.standard.set(stored, forKey: Self.defaultsKey)
+    }
     mutating func move(_ card: CodexDashboardCard, to page: CodexDashboardPage, before target: CodexDashboardCard? = nil) {
         guard target != card else { return }
         for source in CodexDashboardPage.allCases { pages[source]?.removeAll { $0 == card } }
         let index = target.flatMap { pages[page]?.firstIndex(of: $0) } ?? (pages[page]?.count ?? 0)
         pages[page, default: []].insert(card, at: index)
-    }
-}
-
-/// Hover uses public AppKit feedback. Strength remains hardware-controlled.
-@MainActor
-final class CodexDashboardHaptics {
-    private var last = Date.distantPast
-    private var pending: Task<Void, Never>?
-    func hover() {
-        guard WidgetDefaults.bool(key: "hoverHaptics", widgetId: codexUsageWidgetId), Date().timeIntervalSince(last) > 0.12 else { return }
-        last = Date()
-        pending?.cancel()
-        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
-        pending = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(65))
-            guard !Task.isCancelled, WidgetDefaults.bool(key: "hoverHaptics", widgetId: codexUsageWidgetId) else { return }
-            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
-        }
     }
 }

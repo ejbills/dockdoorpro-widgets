@@ -66,7 +66,7 @@ actor CodexUsageAnalyticsReader {
     func read(now: Date = Date(), urls: [URL]? = nil) -> CodexAnalyticsSnapshot {
         if urls == nil, let checked = cached.checkedAt, now.timeIntervalSince(checked) < 30 { return cached }
         let started = Date()
-        let selected = Array((urls ?? recentFiles()).prefix(8))
+        let selected = Array((urls ?? CodexSessionsStore.recentRolloutFiles(limit: 8)).prefix(8))
         files = files.filter { selected.contains($0.key) }
         var bytes = 0
         var unavailable = 0
@@ -183,29 +183,6 @@ actor CodexUsageAnalyticsReader {
             result[key] = max(0, min(number, 1_000_000_000_000))
         }
         return result
-    }
-
-    private func recentFiles() -> [URL] {
-        let root = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".codex/sessions")
-        let manager = FileManager.default
-        func children(_ url: URL) -> [URL] {
-            (try? manager.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles])) ?? []
-        }
-        var candidates: [URL] = []
-        for year in children(root).sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).prefix(2) {
-            for month in children(year).sorted(by: { $0.lastPathComponent > $1.lastPathComponent }) {
-                for day in children(month).sorted(by: { $0.lastPathComponent > $1.lastPathComponent }) {
-                    candidates += children(day).filter { $0.lastPathComponent.hasPrefix("rollout-") && $0.pathExtension == "jsonl" }
-                    if candidates.count >= 8 { break }
-                }
-                if candidates.count >= 8 { break }
-            }
-            if candidates.count >= 8 { break }
-        }
-        return candidates.sorted {
-            ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) >
-            ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast)
-        }
     }
 }
 

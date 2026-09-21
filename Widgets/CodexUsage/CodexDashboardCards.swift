@@ -48,7 +48,7 @@ struct CodexDashboardCardContent: View {
                 Text(snapshot.primaryTitle).font(.title2.weight(.bold))
                 Text(snapshot.primaryLimit?.name ?? "No usage recorded")
                     .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text(snapshot.resetSummary(now: now)).font(.caption).foregroundStyle(theme.accent)
+                Text(snapshot.resetSummary(now: now)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -75,7 +75,7 @@ struct CodexDashboardCardContent: View {
     private var totals: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(scope).font(.caption2).foregroundStyle(.secondary)
-            Text(codexTokenLabel(input + output)).font(.title.weight(.bold)).monospacedDigit().foregroundStyle(theme.accent)
+            Text(codexTokenLabel(input + output)).font(.title.weight(.bold)).monospacedDigit()
             HStack {
                 UsageStat(title: "Input", value: codexTokenLabel(input))
                 UsageStat(title: "Output", value: codexTokenLabel(output))
@@ -146,7 +146,7 @@ struct CodexDashboardCardContent: View {
 
     private var pulse: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(snapshot.modelSummary).font(.callout.weight(.bold)).foregroundStyle(theme.accent)
+            Text(snapshot.modelSummary).font(.callout.weight(.bold))
             HStack {
                 UsageStat(title: "Sessions", value: "\(analytics.sessions.count)")
                 UsageStat(title: "Events", value: "\(analytics.samples.count)")
@@ -201,7 +201,7 @@ struct CodexDashboardCardContent: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(scope).font(.caption2).foregroundStyle(.secondary)
             if input > 0 {
-                Text("\(Int(Double(cached) / Double(input) * 100))% cached").font(.title2.weight(.bold)).foregroundStyle(theme.accent)
+                Text("\(Int(Double(cached) / Double(input) * 100))% cached").font(.title2.weight(.bold))
                 ProgressView(value: Double(cached), total: Double(input)).tint(theme.accent)
                 row("Cached input", codexTokenLabel(cached))
                 row("Uncached input", codexTokenLabel(max(0, input - cached)))
@@ -215,9 +215,7 @@ struct CodexDashboardCardContent: View {
         VStack(alignment: .leading, spacing: 10) {
             row("Account limits recorded", snapshot.limits.isEmpty ? "No" : "Yes")
             row("Model recorded", snapshot.modelContext == nil ? "No" : "Yes")
-            if let lastRead {
-                HStack { Text("Limits last checked"); Spacer(); Text(lastRead, style: .time) }.font(.caption)
-            }
+            if let lastRead { row("Limits last checked", lastRead.formatted(date: .omitted, time: .shortened)) }
             row("Logs sampled", "\(analytics.sessions.count) / 8")
             row("Last analytics read", "\(analytics.readMilliseconds) ms")
             row("New bytes read", codexTokenLabel(analytics.bytesRead))
@@ -248,7 +246,7 @@ struct CodexDashboardCardContent: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title).font(.caption)
             Spacer(minLength: 8)
-            Text(value).font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(theme.accent)
+            Text(value).font(.caption.monospacedDigit().weight(.semibold))
         }
     }
     private func empty(_ text: String) -> some View {

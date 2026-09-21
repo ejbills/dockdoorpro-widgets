@@ -115,7 +115,6 @@ struct CodexIdentityArtwork: View {
     }
 
     private func stars(_ context: inout GraphicsContext, size: CGSize, time: Double, count: Int, tint: Color) {
-        let count = Int(Double(count))
         for index in 0..<count {
             let x = CGFloat((index * 37 + 11) % 101) / 101 * size.width
             let y = CGFloat((index * 23 + 9) % 83) / 83 * size.height

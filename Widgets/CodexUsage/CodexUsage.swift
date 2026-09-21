@@ -34,7 +34,6 @@ final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
             ),
             .picker(key: "cardDensity", label: "Card Density", options: ["Compact", "Standard", "Spacious"], defaultValue: "Standard"),
             .toggle(key: "animateArtwork", label: "Animate Model Artwork", defaultValue: true),
-            .toggle(key: "hoverHaptics", label: "Hover Haptics", defaultValue: false),
         ]
     }
 }
@@ -492,7 +491,7 @@ private enum CodexUsageStore {
 /// Reads the newest `rate_limits` snapshot Codex records in its own session
 /// rollout logs (`~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`). Read-only;
 /// data is as fresh as the user's last Codex turn.
-private enum CodexSessionsStore {
+enum CodexSessionsStore {
     private static let sessionsURL = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".codex/sessions")
 
@@ -513,7 +512,7 @@ private enum CodexSessionsStore {
 
     // Directory and file names sort chronologically (YYYY/MM/DD, timestamped
     // filenames), so descending lexical order walks newest-first.
-    private static func recentRolloutFiles(limit: Int) -> [URL] {
+    static func recentRolloutFiles(limit: Int) -> [URL] {
         let fm = FileManager.default
         func children(_ url: URL) -> [URL] {
             ((try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? [])
@@ -782,9 +781,11 @@ final class CodexUsageModel {
     private(set) var snapshot = CodexUsageSnapshot.empty
     private(set) var lastRead: Date?
     private(set) var analytics = CodexAnalyticsSnapshot.empty
-    var layout = CodexDashboardLayout.initial
-    let haptics = CodexDashboardHaptics()
+    var layout = CodexDashboardLayout.restore() {
+        didSet { layout.save() }
+    }
     private let analyticsReader = CodexUsageAnalyticsReader()
+    private var isReading = false
     private var isReadingAnalytics = false
 
     func tickAnalytics() async {
@@ -793,7 +794,6 @@ final class CodexUsageModel {
         analytics = await analyticsReader.read()
         isReadingAnalytics = false
     }
-    private var isReading = false
 
     func tick(minimumInterval: TimeInterval = 5) async {
         guard !isReading, lastRead.map({ Date().timeIntervalSince($0) >= minimumInterval }) ?? true else { return }
