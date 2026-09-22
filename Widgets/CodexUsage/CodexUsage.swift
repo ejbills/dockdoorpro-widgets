@@ -30,7 +30,7 @@ final class CodexUsagePlugin: WidgetPlugin, DockDoorWidgetProvider {
                 key: "modelTheme",
                 label: "Widget Theme",
                 options: CodexTheme.allCases.map(\.rawValue),
-                defaultValue: "Luna"
+                defaultValue: CodexTheme.luna.rawValue
             ),
             .picker(key: "cardDensity", label: "Card Density", options: ["Compact", "Standard", "Spacious"], defaultValue: "Standard"),
             .toggle(key: "animateArtwork", label: "Animate Model Artwork", defaultValue: true),
@@ -323,15 +323,25 @@ struct CodexModelContext {
         guard let model, !model.isEmpty else { return "Model unavailable" }
         switch model.lowercased() {
         case let value where value.contains("astra"): return "Astra"
-        case let value where value.contains("luna"): return "Luna"
+        case let value where value.contains("luna"): return generationLabel("Luna", model: model)
         case let value where value.contains("terra"): return "Terra"
-        case let value where value.contains("sol"): return "Sol"
+        case let value where value.contains("sol"): return generationLabel("Sol", model: model)
         default: return model
         }
     }
 
     var shortModelLabel: String {
         modelLabel.count > 10 ? String(modelLabel.prefix(10)) : modelLabel
+    }
+
+    private func generationLabel(_ family: String, model: String) -> String {
+        let value = model.lowercased()
+        // Old session records retain their real generation; no defaults are written.
+        if value.hasPrefix("gpt-"), let version = value.dropFirst(4).split(separator: "-").first,
+           version.first?.isNumber == true {
+            return "\(family)-\(version)"
+        }
+        return family
     }
 
     var reasoningLabel: String {

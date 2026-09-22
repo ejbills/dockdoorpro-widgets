@@ -4,7 +4,17 @@ import SwiftUI
 /// Palette for the usage ring and panel. The host owns the value: it is
 /// declared as a `.picker` setting and read back through `WidgetDefaults`.
 enum CodexTheme: String, CaseIterable {
-    case astra = "Astra", luna = "Luna", sol = "Sol", terra = "Terra", rainbow = "Rainbow"
+    case astra = "Astra", luna = "Luna-6", sol = "Sol-6", terra = "Terra", rainbow = "Rainbow"
+
+    static func identity(for model: String?) -> CodexTheme? {
+        guard let model else { return nil }
+        let value = model.lowercased()
+        if value.contains("astra") { return .astra }
+        if value.contains("luna") { return .luna }
+        if value.contains("sol") { return .sol }
+        if value.contains("terra") { return .terra }
+        return nil
+    }
 
     static func current(widgetId: String) -> CodexTheme {
         CodexTheme(

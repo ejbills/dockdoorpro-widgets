@@ -164,7 +164,7 @@ struct CodexDashboardCardContent: View {
     private var modelIdentity: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let current = snapshot.modelContext {
-                let identity = CodexTheme.allCases.first { $0.rawValue == current.modelLabel } ?? theme
+                let identity = CodexTheme.identity(for: current.model) ?? theme
                 VStack(alignment: .leading, spacing: 4) {
                     Text(current.modelLabel).font(.title2.weight(.bold))
                     Text(current.reasoningLabel).font(.callout.weight(.semibold))
