@@ -242,6 +242,22 @@ struct CodexUsageSnapshot {
     let limits: [CodexUsageLimit]
     let creditsBalance: String?
     let modelContext: CodexModelContext?
+    let sourceUpdatedAt: Date?
+    let sourceDescription: String?
+
+    init(
+        limits: [CodexUsageLimit],
+        creditsBalance: String?,
+        modelContext: CodexModelContext?,
+        sourceUpdatedAt: Date? = nil,
+        sourceDescription: String? = nil
+    ) {
+        self.limits = limits
+        self.creditsBalance = creditsBalance
+        self.modelContext = modelContext
+        self.sourceUpdatedAt = sourceUpdatedAt
+        self.sourceDescription = sourceDescription
+    }
 
     static let empty = CodexUsageSnapshot(limits: [], creditsBalance: nil, modelContext: nil)
 
@@ -252,6 +268,16 @@ struct CodexUsageSnapshot {
     var primaryTitle: String { primaryLimit?.percentLabel ?? "No data" }
     var primarySubtitle: String {
         primaryLimit.map { "\($0.name) - \($0.resetLabel)" } ?? "Run a Codex session to record usage"
+    }
+
+    func freshnessWarning(now: Date) -> String? {
+        guard sourceDescription != nil else { return nil }
+        guard let sourceUpdatedAt else { return "Account snapshot timestamp is unavailable." }
+        guard now.timeIntervalSince(sourceUpdatedAt) > 15 * 60 else { return nil }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Showing stale account data · updated \(formatter.localizedString(for: sourceUpdatedAt, relativeTo: now))"
     }
 
     func resetSummary(now: Date) -> String {
@@ -303,7 +329,9 @@ struct CodexUsageSnapshot {
         CodexUsageSnapshot(
             limits: limits,
             creditsBalance: creditsBalance,
-            modelContext: context ?? modelContext
+            modelContext: context ?? modelContext,
+            sourceUpdatedAt: sourceUpdatedAt,
+            sourceDescription: sourceDescription
         )
     }
 }
@@ -447,7 +475,14 @@ private enum CodexUsageStore {
             limits = decodedLimits
         }
 
-        return CodexUsageSnapshot(limits: limits, creditsBalance: file.creditsBalance, modelContext: nil)
+        let updatedAt = parseDate(file.updatedAt) ?? modificationDate(for: usageURL)
+        return CodexUsageSnapshot(
+            limits: limits,
+            creditsBalance: file.creditsBalance,
+            modelContext: nil,
+            sourceUpdatedAt: updatedAt,
+            sourceDescription: file.source ?? "Local usage snapshot"
+        )
     }
 
     private static func normalizedRemaining(
@@ -485,6 +520,10 @@ private enum CodexUsageStore {
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    }
+
+    private static func modificationDate(for url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
     }
 }
 
@@ -722,6 +761,8 @@ enum CodexSessionsStore {
 }
 
 private struct CodexUsageFile: Decodable {
+    let updatedAt: String?
+    let source: String?
     let title: String?
     let creditsBalance: String?
     let remaining: Int64?

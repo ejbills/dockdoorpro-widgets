@@ -42,15 +42,25 @@ struct CodexDashboardCardContent: View {
     }
 
     private var quota: some View {
-        HStack(spacing: 12) {
-            UsageRing(percentRemaining: snapshot.primaryPercent, size: 76, lineWidth: 7, theme: theme)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(snapshot.primaryTitle).font(.title2.weight(.bold))
-                Text(snapshot.primaryLimit?.name ?? "No usage recorded")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text(snapshot.resetSummary(now: now)).font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                UsageRing(percentRemaining: snapshot.primaryPercent, size: 76, lineWidth: 7, theme: theme)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(snapshot.primaryTitle).font(.title2.weight(.bold))
+                    Text(snapshot.primaryLimit?.name ?? "No usage recorded")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(snapshot.resetSummary(now: now)).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            if let warning = snapshot.freshnessWarning(now: now) {
+                Label(warning, systemImage: "clock.arrow.circlepath")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(theme.accent.opacity(0.10), in: Capsule())
+            }
         }
     }
 
@@ -220,7 +230,8 @@ struct CodexDashboardCardContent: View {
             row("Last analytics read", "\(analytics.readMilliseconds) ms")
             row("New bytes read", codexTokenLabel(analytics.bytesRead))
             if analytics.unavailableFiles > 0 { row("Unavailable logs", "\(analytics.unavailableFiles)") }
-            Text("Limits come from local session records or usage.json. Check time is not the age of those limits.").font(.caption2).foregroundStyle(.secondary)
+            Text("This read-only widget never refreshes usage.json. Its update time is checked separately, and snapshots older than 15 minutes are marked stale.")
+                .font(.caption2).foregroundStyle(.secondary)
             Text("Analytics retain up to 512 events per log and decode at most 1 MB of new event data per changed log every 30 seconds. Sampled totals exclude older history.")
                 .font(.caption2).foregroundStyle(.secondary)
         }
