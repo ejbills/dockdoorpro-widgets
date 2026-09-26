@@ -174,7 +174,7 @@ struct CodexDashboardCardContent: View {
     private var modelIdentity: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let current = snapshot.modelContext {
-                let identity = CodexTheme.allCases.first { $0.rawValue == current.modelLabel } ?? theme
+                let identity = CodexTheme.identity(for: current.model) ?? theme
                 VStack(alignment: .leading, spacing: 4) {
                     Text(current.modelLabel).font(.title2.weight(.bold))
                     Text(current.reasoningLabel).font(.callout.weight(.semibold))
@@ -230,7 +230,7 @@ struct CodexDashboardCardContent: View {
             row("Last analytics read", "\(analytics.readMilliseconds) ms")
             row("New bytes read", codexTokenLabel(analytics.bytesRead))
             if analytics.unavailableFiles > 0 { row("Unavailable logs", "\(analytics.unavailableFiles)") }
-            Text("This read-only widget never refreshes usage.json. Its update time is checked separately, and snapshots older than 15 minutes are marked stale.")
+            Text("Limits are read from local session records or usage.json. This read-only widget does not refresh usage.json; its update time is checked separately, and snapshots older than 15 minutes are marked stale.")
                 .font(.caption2).foregroundStyle(.secondary)
             Text("Analytics retain up to 512 events per log and decode at most 1 MB of new event data per changed log every 30 seconds. Sampled totals exclude older history.")
                 .font(.caption2).foregroundStyle(.secondary)
