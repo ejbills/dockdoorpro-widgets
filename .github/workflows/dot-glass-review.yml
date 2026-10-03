@@ -1,0 +1,16 @@
+name: Dot Glass Review Checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - name: Report toolchain
+        run: swift --version && xcodebuild -version
+      - name: Build exactly as the marketplace does
+        run: bash scripts/build-widgets.sh Widgets/DotGlass
+      - name: Regression and bundle-loading tests
+        run: bash scripts/test-dot-glass.sh

@@ -1,0 +1,31 @@
+{
+  "id": "dot-glass",
+  "name": "Dot Glass",
+  "author": "appleforever11",
+  "description": "Your Dot in a glass conversation panel, with real messages and a speaking-animated ring.",
+  "iconSymbol": "circle.circle",
+  "orientations": [
+    "horizontal",
+    "vertical"
+  ],
+  "principalClass": "DotGlassPlugin",
+  "sources": [
+    "DotConnection.swift",
+    "DotDirectory.swift",
+    "DotGlassPlugin.swift",
+    "DotGlassStyle.swift",
+    "DotModels.swift",
+    "DotNotifications.swift",
+    "DotOnboarding.swift",
+    "DotPageAdapter.swift",
+    "DotPanel.swift",
+    "DotPicker.swift",
+    "DotRing.swift",
+    "DotTheme.swift",
+    "DotTour.swift",
+    "DotTranscript.swift",
+    "DotUnread.swift",
+    "DotVoiceAdapter.swift",
+    "DotWebSession.swift"
+  ]
+}
