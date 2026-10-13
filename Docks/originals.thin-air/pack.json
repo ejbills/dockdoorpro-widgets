@@ -1,0 +1,103 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "wind",
+  "id": "originals.thin-air",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.0,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 22,
+    "dockBackgroundStyle": "clear",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "system",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 50,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": false,
+    "focusedAppHandleBar": false,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 160,
+    "magnificationScale": 1.7,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "none",
+    "showDockSeparators": false,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Thin Air",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#EDE9E3",
+        "#C8C2B8"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": []
+  },
+  "revision": 1,
+  "stacks": [],
+  "tagline": "No background at all, no indicators, no profile button; only your icons",
+  "tags": [
+    "minimal",
+    "clear",
+    "light",
+    "dark"
+  ]
+}

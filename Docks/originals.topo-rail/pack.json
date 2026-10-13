@@ -1,0 +1,204 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 240780,
+      "height": 2400,
+      "sha256": "4f67e85de5f10f055f0522af0082b303cde4c6b308d8645d435115214edc75df",
+      "type": "public.jpeg",
+      "width": 320
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.85,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "mountain.2",
+  "id": "originals.topo-rail",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s2"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.7,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 16,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 44,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "sidebar",
+    "dockPosition": "left",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.18,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 120,
+    "magnificationScale": 1.4,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Topo Rail",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#0E2A24",
+        "#2A5A48"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "verticalDock",
+        "level": 1,
+        "name": "Vertical Dock"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Day",
+      "slotSize": "single",
+      "widgetIds": [
+        "dayProgress"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "BAB14CC7-65F7-555F-B38D-82F7CA3BE579",
+          "typeId": "dayProgress"
+        }
+      ]
+    },
+    {
+      "activeIndex": 0,
+      "id": "s2",
+      "name": "Sky",
+      "slotSize": "single",
+      "widgetIds": [
+        "weather"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "weather",
+            "weather": {
+              "locationLat": 0,
+              "locationLon": 0,
+              "locationName": "",
+              "temperatureUnit": "system",
+              "useCurrentLocation": true
+            }
+          },
+          "contentScale": 1,
+          "id": "251FF0D6-3AD2-54B8-A53F-1E54C1640C4F",
+          "options": {
+            "variant": {
+              "string": "sunCycle"
+            }
+          },
+          "typeId": "weather"
+        }
+      ]
+    }
+  ],
+  "tagline": "A left rail of sidebar glass over forest contour lines and an amber ridge",
+  "tags": [
+    "vertical",
+    "glass",
+    "colorful",
+    "dark"
+  ]
+}

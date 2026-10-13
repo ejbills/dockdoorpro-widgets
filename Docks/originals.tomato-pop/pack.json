@@ -1,0 +1,140 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "flame",
+  "id": "originals.tomato-pop",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 2,
+    "cardGlimmerEnabled": false,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.9,
+    "dockBackgroundBorderWidth": 3,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 8,
+    "dockBackgroundStyle": "solidColor",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 60,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 6,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.35,
+    "magnificationStyle": "bounce",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "solidColor",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.15,
+      "green": 0.27,
+      "red": 1.0
+    },
+    "tintIconCardsWithAppColors": false,
+    "widgetCardBackgroundColor": {
+      "blue": 0.8,
+      "green": 0.93,
+      "red": 1.0
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": false,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Tomato Pop",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#FFD9C9",
+        "#FF8F6B"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "bounceMagnification",
+        "level": 1,
+        "name": "Bounce Magnification"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Pocket Tools",
+      "slotSize": "double",
+      "widgetIds": [
+        "calculator",
+        "emoji"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "DD2A5DC5-09AF-5EAA-8800-BC64EECBBF71",
+          "typeId": "calculator"
+        },
+        {
+          "contentScale": 1,
+          "id": "285BE4AB-F408-5464-9FE2-46336894BDF8",
+          "typeId": "emoji"
+        }
+      ]
+    }
+  ],
+  "tagline": "A flat, loud tomato red with big squared icons and a cream calculator",
+  "tags": [
+    "solid",
+    "bold",
+    "colorful",
+    "widgets"
+  ]
+}

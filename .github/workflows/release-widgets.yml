@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'Widgets/**'
+      - 'Docks/**'
       - 'scripts/**'
 
 env:
@@ -28,17 +29,25 @@ jobs:
       - name: Validate widget folders
         run: python3 scripts/validate-widgets.py
 
+      - name: Validate docks
+        run: python3 scripts/validate-docks.py
+
       - name: Build all widgets
         run: bash scripts/build-widgets.sh
 
       - name: Generate manifest
         run: python3 scripts/generate-manifest.py
 
+      - name: Generate docks catalog
+        run: python3 scripts/generate-docks-catalog.py
+
       - name: Prepare site
         run: |
           mkdir -p _site/bundles
           cp manifest.json _site/
           cp build/*.bundle.zip _site/bundles/
+          cp build/docks.json _site/
+          cp -R build/docks _site/docks
           if [ -d build/previews ]; then cp -R build/previews _site/previews; fi
 
       - name: Upload Pages artifact

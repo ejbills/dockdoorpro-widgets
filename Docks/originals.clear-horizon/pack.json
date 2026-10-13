@@ -1,0 +1,192 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "sun.horizon",
+  "id": "originals.clear-horizon",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s2"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.5,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 18,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "system",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 52,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.08,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Clear Horizon",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#A7C4E5",
+        "#E9EEF5"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Weather",
+      "slotSize": "single",
+      "widgetIds": [
+        "weather"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "weather",
+            "weather": {
+              "locationLat": 0,
+              "locationLon": 0,
+              "locationName": "",
+              "temperatureUnit": "system",
+              "useCurrentLocation": true
+            }
+          },
+          "contentScale": 1,
+          "id": "03F5BBD7-E165-59CD-910C-38BE3A8AC77C",
+          "typeId": "weather"
+        }
+      ]
+    },
+    {
+      "activeIndex": 0,
+      "id": "s2",
+      "name": "Clock + Battery",
+      "slotSize": "double",
+      "widgetIds": [
+        "clock",
+        "battery"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "clock": {
+              "dateFormat": "system",
+              "showAnalogFace": false,
+              "showDate": true,
+              "showSeconds": false,
+              "timezoneIdentifier": "",
+              "use24Hour": false
+            },
+            "kind": "clock"
+          },
+          "contentScale": 1,
+          "id": "CB2422FD-5197-5568-87EE-64493AD0B34A",
+          "typeId": "clock"
+        },
+        {
+          "contentScale": 1,
+          "id": "6C7363F1-912C-5F2D-B5B6-2337E539879D",
+          "typeId": "battery"
+        }
+      ]
+    }
+  ],
+  "tagline": "Control Center glass with app-tinted cards and a classic scale",
+  "tags": [
+    "glass",
+    "minimal",
+    "light",
+    "dark"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 202602,
+      "height": 320,
+      "sha256": "0ff93801f07b0fbbfd09e2125221523f37f44a2b482b162e81e3f8d2aeeca0c8",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 1.0,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "tree",
+  "id": "originals.walnut-shelf",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.5,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.0,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 10,
+    "dockBackgroundStyle": "frostedMaterial",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 56,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": true,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": false,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.8,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "frostedMaterial",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Walnut Shelf",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#3A2616",
+        "#8A5A36"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "reflectiveShelf",
+        "level": 1,
+        "name": "Reflective Shelf"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [],
+  "tagline": "A mirrored shelf of oiled walnut, the way docks used to feel",
+  "tags": [
+    "retro",
+    "frosted",
+    "dark",
+    "calm"
+  ]
+}

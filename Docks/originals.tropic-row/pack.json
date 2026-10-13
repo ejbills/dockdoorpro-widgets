@@ -1,0 +1,186 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 193219,
+      "height": 320,
+      "sha256": "72c78c7620a56b1e2cb5dc019219ba17479955244faa3b72657e7a050167d3d0",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.95,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "leaf",
+  "id": "originals.tropic-row",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.6,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 12,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 3,
+    "dockIconSize": 32,
+    "dockLiquidCrestEnabled": true,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.06,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 3,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 120,
+    "magnificationScale": 2.0,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "dot"
+  },
+  "name": "Tropic Row",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#06403C",
+        "#2FA06A"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "liquidCrest",
+        "level": 1,
+        "name": "Liquid Crest"
+      },
+      {
+        "id": "widgetStyleVariants",
+        "level": 1,
+        "name": "Widget Styles"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "World Clock",
+      "slotSize": "single",
+      "widgetIds": [
+        "clock"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "clock": {
+              "dateFormat": "system",
+              "showAnalogFace": true,
+              "showDate": false,
+              "showSeconds": false,
+              "timezoneIdentifier": "",
+              "use24Hour": false
+            },
+            "kind": "clock"
+          },
+          "contentScale": 1,
+          "id": "D7484612-98C3-51A2-94B7-0F8E5AEE937C",
+          "options": {
+            "variant": {
+              "string": "worldClock"
+            }
+          },
+          "typeId": "clock"
+        }
+      ]
+    }
+  ],
+  "tagline": "Tiny icons on a jungle canopy that swell with Liquid Crest glass",
+  "tags": [
+    "colorful",
+    "glass",
+    "playful",
+    "dark"
+  ]
+}

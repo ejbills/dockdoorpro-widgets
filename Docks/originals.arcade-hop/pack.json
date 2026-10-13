@@ -1,0 +1,194 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 226777,
+      "height": 320,
+      "sha256": "af46d1452ea24e46c55ac4e428aba14095697b8eb06b402a20add2bd2033a927",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.95,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "gamecontroller",
+  "id": "originals.arcade-hop",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 8,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.5,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 30,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 64,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "appIcons",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.12,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 6,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.4,
+    "magnificationStyle": "bounce",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": true,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "appIcons",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Arcade Hop",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#0D0A26",
+        "#6B1A6E",
+        "#1A6699"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "bounceMagnification",
+        "level": 1,
+        "name": "Bounce Magnification"
+      },
+      {
+        "id": "widgetStyleVariants",
+        "level": 1,
+        "name": "Widget Styles"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Pixel Clock",
+      "slotSize": "double",
+      "widgetIds": [
+        "clock",
+        "systemStats"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "clock": {
+              "dateFormat": "system",
+              "showAnalogFace": true,
+              "showDate": false,
+              "showSeconds": true,
+              "timezoneIdentifier": "",
+              "use24Hour": false
+            },
+            "kind": "clock"
+          },
+          "contentScale": 1,
+          "id": "2F96A6F3-26A1-5FC8-9D93-BFACA2D67EBA",
+          "options": {
+            "variant": {
+              "string": "pixelClock"
+            }
+          },
+          "typeId": "clock"
+        },
+        {
+          "contentScale": 1,
+          "id": "DAF77F5D-7A50-5594-9A96-CB990DE83267",
+          "typeId": "systemStats"
+        }
+      ]
+    }
+  ],
+  "tagline": "Big icons that hop on glass, a pixel clock, and a neon grid horizon",
+  "tags": [
+    "playful",
+    "colorful",
+    "retro",
+    "widgets",
+    "dark"
+  ]
+}

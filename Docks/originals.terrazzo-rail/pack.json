@@ -1,0 +1,162 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 235139,
+      "height": 2400,
+      "sha256": "61001ab9a2579cc231d0df7b4419fbc98a9891283068c4076dfa2e013c9fcd47",
+      "type": "public.jpeg",
+      "width": 320
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 1.0,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "circle.hexagongrid",
+  "id": "originals.terrazzo-rail",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "kind": "spacer"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.0,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.0,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "frostedMaterial",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "light",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 44,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "right",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "taskbar",
+    "enableMagnification": false,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 6,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "frostedMaterial",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.52,
+      "green": 0.5,
+      "red": 0.1
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 0.95,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Terrazzo Rail",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#F3E7D3",
+        "#E0B48A"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "verticalDock",
+        "level": 1,
+        "name": "Vertical Dock"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Picker + Units",
+      "slotSize": "double",
+      "widgetIds": [
+        "colorPicker",
+        "converter"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "1496E8E0-F9F3-562B-AF47-9B1C892D71EA",
+          "typeId": "colorPicker"
+        },
+        {
+          "contentScale": 1,
+          "id": "500F8FBE-6AD9-5FB2-A3C0-72D8571970BF",
+          "typeId": "converter"
+        }
+      ]
+    }
+  ],
+  "tagline": "A right-hand taskbar of speckled terrazzo, still and cheerful",
+  "tags": [
+    "vertical",
+    "taskbar",
+    "light",
+    "colorful"
+  ]
+}

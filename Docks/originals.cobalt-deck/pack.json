@@ -1,0 +1,173 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "rectangle.fill",
+  "id": "originals.cobalt-deck",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "kind": "spacer"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "kind": "stack",
+      "stack": "s2"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": false,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.0,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "solidColor",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 40,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "taskbar",
+    "enableMagnification": false,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 6,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "solidColor",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.95,
+      "green": 0.27,
+      "red": 0.0
+    },
+    "tintIconCardsWithAppColors": false,
+    "widgetCardBackgroundColor": {
+      "blue": 0.45,
+      "green": 0.1,
+      "red": 0.0
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 0.9,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Cobalt Deck",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#0A1E5C",
+        "#3E7BFF"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": []
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Clocks",
+      "slotSize": "double",
+      "widgetIds": [
+        "clock"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "clock": {
+              "dateFormat": "system",
+              "showAnalogFace": true,
+              "showDate": false,
+              "showSeconds": false,
+              "timezoneIdentifier": "",
+              "use24Hour": false
+            },
+            "kind": "clock"
+          },
+          "contentScale": 1,
+          "id": "764E9CC9-13D6-51C0-9686-FB3981D0A14D",
+          "options": {
+            "variant": {
+              "string": "overlapClock"
+            }
+          },
+          "typeId": "clock"
+        }
+      ]
+    },
+    {
+      "activeIndex": 0,
+      "id": "s2",
+      "name": "Power",
+      "slotSize": "single",
+      "widgetIds": [
+        "battery",
+        "network"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "86A03364-7674-50E9-B5C7-F76FC86B0E61",
+          "typeId": "battery"
+        },
+        {
+          "contentScale": 1,
+          "id": "52194F89-8F20-5A4D-870C-54C7289ADB20",
+          "typeId": "network"
+        }
+      ]
+    }
+  ],
+  "tagline": "A full-bleed cobalt taskbar with overlapping clocks and a battery readout",
+  "tags": [
+    "taskbar",
+    "solid",
+    "bold",
+    "widgets"
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "sparkles",
+  "id": "originals.aurora-drift",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s2"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "clear",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 52,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 160,
+    "magnificationScale": 1.5,
+    "magnificationStyle": "wave",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": false,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.22,
+      "green": 0.16,
+      "red": 0.06
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 0.8,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Aurora Drift",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#06334D",
+        "#1A8C80",
+        "#73338C"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "waveMagnification",
+        "level": 1,
+        "name": "Wave Magnification"
+      },
+      {
+        "id": "widgetStyleVariants",
+        "level": 1,
+        "name": "Widget Styles"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Sky",
+      "slotSize": "double",
+      "widgetIds": [
+        "weather",
+        "weather"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "weather",
+            "weather": {
+              "locationLat": 0,
+              "locationLon": 0,
+              "locationName": "",
+              "temperatureUnit": "system",
+              "useCurrentLocation": true
+            }
+          },
+          "contentScale": 1,
+          "id": "F76939A3-4BC6-5550-95A7-8FB28AED61D4",
+          "typeId": "weather"
+        },
+        {
+          "builtInSettings": {
+            "kind": "weather",
+            "weather": {
+              "locationLat": 0,
+              "locationLon": 0,
+              "locationName": "",
+              "temperatureUnit": "system",
+              "useCurrentLocation": true
+            }
+          },
+          "contentScale": 1,
+          "id": "6278AD62-D38D-5F48-B355-3D26E08770FE",
+          "options": {
+            "variant": {
+              "string": "sunCycle"
+            }
+          },
+          "typeId": "weather"
+        }
+      ]
+    },
+    {
+      "activeIndex": 0,
+      "id": "s2",
+      "name": "Now Playing",
+      "slotSize": "single",
+      "widgetIds": [
+        "nowPlaying"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "nowPlaying",
+            "nowPlaying": {
+              "clickAlwaysTogglesPlayPause": false,
+              "idleSymbol": "music.quarternote.3",
+              "panelMode": "compact",
+              "showVolumeWhenIdle": false
+            }
+          },
+          "contentScale": 1,
+          "id": "C5E663CE-5B6C-52B3-B445-08BCCAD4DC6B",
+          "typeId": "nowPlaying"
+        }
+      ]
+    }
+  ],
+  "tagline": "No dock background, a rolling wave, and deep teal widget cards",
+  "tags": [
+    "clear",
+    "minimal",
+    "colorful",
+    "widgets"
+  ]
+}
