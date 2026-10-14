@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The panel the host shows on hover-activate, long-press or right-click:
-/// a text field, a send button, and the streamed answer below it.
+/// the streamed answer on top, with a growing text field and send button
+/// anchored at the bottom.
 struct AskPanelView: View {
     let model: AskModel
     let dismiss: () -> Void
@@ -13,32 +14,42 @@ struct AskPanelView: View {
         @Bindable var model = model
 
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+            // Response area — sits above the input and grows as the answer streams.
+            if model.phase != .idle {
+                answerSection
+            }
+
+            if let message = model.availabilityMessage() {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Input row — stays anchored at the bottom of the panel. The field
+            // grows vertically (up to a few lines) so the whole prompt is visible.
+            HStack(alignment: .bottom, spacing: 8) {
                 Image(systemName: "siri.gen2")
                     .font(.title3)
                     .foregroundStyle(AskBrand.iconGradient)
                     .accessibilityHidden(true)
 
-                TextField("Ask anything…", text: $model.question)
+                TextField("Ask anything…", text: $model.question, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.title3)
+                    .lineLimit(1...5)
                     .focused($isFocused)
                     .onSubmit(model.send)
                     .onChange(of: model.question) { _, newValue in
                         // Warm the on-device model on the user's first keystroke
-                        // rather than on panel open or only on send, so idle
-                        // panels never load a model they may not use while still
-                        // cutting the first-answer startup cost once they start.
-                        // No session is cached; the warm is a one-shot priming of the
-                        // model availability for the first real generation.
-                        if !newValue.isEmpty, !model.hasStartedTyping {
-                            if case .available = SystemLanguageModel.default.availability {
-                                model.hasStartedTyping = true
-                                SystemLanguageModel.default.prewarm()
-                            }
+                        // rather than on panel open, so idle panels never load a
+                        // model they may not use while still cutting the
+                        // first-answer startup cost once they start typing.
+                        if !newValue.isEmpty {
+                            model.prewarm()
                         }
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if model.isBusy {
                     ProgressView()
@@ -54,18 +65,7 @@ struct AskPanelView: View {
                     .accessibilityLabel("Send")
                 }
             }
-            .frame(height: fieldHeight)
-
-            if let message = model.availabilityMessage() {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if model.phase != .idle {
-                answerSection
-            }
+            .frame(minHeight: fieldHeight)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -102,23 +102,16 @@ struct AskPanelView: View {
                 Text(model.lastQuestion)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            if answerBody.count > 300 {
-                ScrollView {
-                    Text(answerBody)
-                        .font(.callout)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 240)
-            } else {
+            ScrollView {
                 Text(answerBody)
                     .font(.callout)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxHeight: 240)
 
             HStack(spacing: 8) {
                 statusLine

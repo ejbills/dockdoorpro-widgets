@@ -58,9 +58,26 @@ final class AskModel {
     /// Whether the user has already triggered the one-shot first-keystroke
     /// warm in the current clear cycle. Exposed read/write so the panel can
     /// mark the warm as having happened without reaching into a private flag.
+    ///
+    /// The SwiftUI `onChange(of:)` tracking identity uses the property name,
+    /// so this must be `hasStartedTyping`, not `hasStartedTypingFlag`.
     var hasStartedTyping: Bool {
         get { hasStartedTypingFlag }
         set { hasStartedTypingFlag = newValue }
+    }
+
+    /// Warms the on-device model on the user's first keystroke (not on panel
+    /// open) so idle panels never load a model they may not use, while still
+    /// cutting the first-answer startup cost once the user starts typing.
+    ///
+    /// `prewarm()` is a method on `LanguageModelSession`, not on
+    /// `SystemLanguageModel`. The session here is throwaway — it exists only
+    /// to prime the model and is not cached or reused for generation.
+    func prewarm() {
+        guard source == .local, !hasStartedTypingFlag, #available(macOS 26.0, *) else { return }
+        guard case .available = SystemLanguageModel.default.availability else { return }
+        hasStartedTypingFlag = true
+        LanguageModelSession(instructions: Self.instructions).prewarm()
     }
 
     private static let instructions = """
@@ -189,12 +206,21 @@ final class AskModel {
             if turns.count > 6 {
                 turns.removeFirst(turns.count - 6)
             }
+        } catch is CancellationError {
+            // The stream was cancelled (a new send superseded it, or clear()
+            // was pressed). That is not a user-facing failure — leave the phase
+            // alone; the newer send already set it.
+            return
         } catch {
-            guard token == generationToken, !Task.isCancelled else { return }
+            guard token == generationToken else { return }
             if let modelError = error as? LanguageModelSession.GenerationError {
                 phase = .failed(Self.message(for: modelError))
             } else {
-                phase = .failed("Something went wrong — try again.")
+                // Not one of Apple's typed GenerationErrors — surface the real
+                // error so it can be diagnosed in Console instead of a blank
+                // "something went wrong".
+                NSLog("AskAI: generation failed with untyped error: %@", error.localizedDescription)
+                phase = .failed("Something went wrong — try again.\n\(error.localizedDescription)")
             }
         }
     }
