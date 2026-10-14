@@ -237,7 +237,7 @@ final class AskModel {
         case .concurrentRequests:
             return "The model is busy — try again in a moment."
         case .assetsUnavailable:
-            return "The on-device model isn't ready yet. If this Mac has never used Apple's models before, agree to the Foundation Models terms in Terminal first: sudo fm license (it applies machine-wide). Otherwise it may just need a minute to download — try again."
+            return "The on-device model isn't available right now. Make sure Apple Intelligence is on in System Settings, give the model a minute if it's still downloading, then try again."
         case .unsupportedLanguageOrLocale:
             return "The model doesn't support this language yet."
         case .decodingFailure:
