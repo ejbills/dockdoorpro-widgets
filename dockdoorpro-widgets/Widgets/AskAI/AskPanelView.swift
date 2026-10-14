@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The panel the host shows on hover-activate, long-press or right-click:
-/// a text field, a send button, and the streamed answer below it.
+/// the streamed answer on top, with a growing text field and send button
+/// anchored at the bottom.
 struct AskPanelView: View {
     let model: AskModel
     let dismiss: () -> Void
@@ -13,18 +14,42 @@ struct AskPanelView: View {
         @Bindable var model = model
 
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+            // Response area — sits above the input and grows as the answer streams.
+            if model.phase != .idle {
+                answerSection
+            }
+
+            if let message = model.availabilityMessage() {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Input row — stays anchored at the bottom of the panel. The field
+            // grows vertically (up to a few lines) so the whole prompt is visible.
+            HStack(alignment: .bottom, spacing: 8) {
                 Image(systemName: "siri.gen2")
                     .font(.title3)
                     .foregroundStyle(AskBrand.iconGradient)
                     .accessibilityHidden(true)
 
-                TextField("Ask anything…", text: $model.question)
+                TextField("Ask anything…", text: $model.question, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.title3)
+                    .lineLimit(1...5)
                     .focused($isFocused)
                     .onSubmit(model.send)
-                    .frame(maxWidth: .infinity)
+                    .onChange(of: model.question) { _, newValue in
+                        // Warm the on-device model on the user's first keystroke
+                        // rather than on panel open, so idle panels never load a
+                        // model they may not use while still cutting the
+                        // first-answer startup cost once they start typing.
+                        if !newValue.isEmpty {
+                            model.prewarm()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if model.isBusy {
                     ProgressView()
@@ -40,18 +65,7 @@ struct AskPanelView: View {
                     .accessibilityLabel("Send")
                 }
             }
-            .frame(height: fieldHeight)
-
-            if let message = model.availabilityMessage() {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if model.phase != .idle {
-                answerSection
-            }
+            .frame(minHeight: fieldHeight)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -64,7 +78,10 @@ struct AskPanelView: View {
                 .accessibilityHidden(true)
         }
         .onAppear {
-            model.prewarm()
+            // Don't pull the on-device model into memory until the user
+            // actually starts a question — the first real generation still
+            // pays the same startup cost, but idle panels no longer warm
+            // a model most users never use.
             focusField()
         }
         .onChange(of: model.isBusy) { _, busy in
@@ -85,23 +102,16 @@ struct AskPanelView: View {
                 Text(model.lastQuestion)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            if answerBody.count > 300 {
-                ScrollView {
-                    Text(answerBody)
-                        .font(.callout)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 240)
-            } else {
+            ScrollView {
                 Text(answerBody)
                     .font(.callout)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxHeight: 240)
 
             HStack(spacing: 8) {
                 statusLine
@@ -165,28 +175,33 @@ struct AskPanelView: View {
     /// then install the system caret with a replayed click.
     private func focusField() {
         Task { @MainActor in
+            var keyedPanels: [NSWindow] = []
             for delay in [0, 50, 150, 300] {
                 if delay > 0 {
                     try? await Task.sleep(for: .milliseconds(delay))
                 }
-                NSApp.windows
+                keyedPanels = NSApp.windows
                     .filter { $0 is NSPanel && $0.isVisible }
-                    .forEach { $0.makeKey() }
+                keyedPanels.forEach { $0.makeKey() }
                 isFocused = false
                 await Task.yield()
                 isFocused = true
             }
 
             try? await Task.sleep(for: .milliseconds(50))
-            Self.clickToShowCursor()
+            Self.clickToShowCursor(onlyIn: keyedPanels)
         }
     }
 
     // AppKit only installs the caret after a real click in the field editor,
     // so replay one through the event queue (postEvent, never sendEvent —
     // sendEvent blocks the panel's mouse-tracking loop).
-    private static func clickToShowCursor() {
+    private static func clickToShowCursor(onlyIn panels: [NSWindow]) {
+        // Re-verify synchronously that key focus is still on a panel this
+        // widget focused: if the user clicked elsewhere during the sleep, the
+        // fabricated click must not land in an unrelated window.
         guard let window = NSApp.keyWindow,
+              panels.contains(where: { $0 === window }),
               let editor = window.firstResponder as? NSTextView else { return }
         guard editor.string.isEmpty else { return }
 
