@@ -175,28 +175,33 @@ struct AskPanelView: View {
     /// then install the system caret with a replayed click.
     private func focusField() {
         Task { @MainActor in
+            var keyedPanels: [NSWindow] = []
             for delay in [0, 50, 150, 300] {
                 if delay > 0 {
                     try? await Task.sleep(for: .milliseconds(delay))
                 }
-                NSApp.windows
+                keyedPanels = NSApp.windows
                     .filter { $0 is NSPanel && $0.isVisible }
-                    .forEach { $0.makeKey() }
+                keyedPanels.forEach { $0.makeKey() }
                 isFocused = false
                 await Task.yield()
                 isFocused = true
             }
 
             try? await Task.sleep(for: .milliseconds(50))
-            Self.clickToShowCursor()
+            Self.clickToShowCursor(onlyIn: keyedPanels)
         }
     }
 
     // AppKit only installs the caret after a real click in the field editor,
     // so replay one through the event queue (postEvent, never sendEvent —
     // sendEvent blocks the panel's mouse-tracking loop).
-    private static func clickToShowCursor() {
+    private static func clickToShowCursor(onlyIn panels: [NSWindow]) {
+        // Re-verify synchronously that key focus is still on a panel this
+        // widget focused: if the user clicked elsewhere during the sleep, the
+        // fabricated click must not land in an unrelated window.
         guard let window = NSApp.keyWindow,
+              panels.contains(where: { $0 === window }),
               let editor = window.firstResponder as? NSTextView else { return }
         guard editor.string.isEmpty else { return }
 
