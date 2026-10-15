@@ -45,18 +45,15 @@ struct AskDockView: View {
             askIcon(size: dim * 0.4)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Ask")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                // The title gives way to the answer so the stack fits the slot height.
+                if model.answer.isEmpty {
+                    title
+                }
                 questionLine
-                    .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 if !model.answer.isEmpty {
-                    Text(model.answer)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    answerLine
                         .lineLimit(2)
                         .minimumScaleFactor(0.7)
                 }
@@ -77,19 +74,15 @@ struct AskDockView: View {
     private var verticalLayout: some View {
         VStack(spacing: max(dim * WidgetMetrics.spacingScale, 2)) {
             askIcon(size: dim * 0.4)
-            Text("Ask")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if model.answer.isEmpty {
+                title
+            }
             questionLine
-                .font(.caption2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .frame(maxWidth: .infinity)
             if !model.answer.isEmpty {
-                Text(model.answer)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                answerLine
                     .lineLimit(3)
                     .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity)
@@ -99,6 +92,7 @@ struct AskDockView: View {
                     .controlSize(.small)
             }
         }
+        .padding(.horizontal, max(dim * 0.08, 2))
         .padding(.vertical, max(dim * 0.08, 3))
         .frame(maxHeight: .infinity)
         .opacity(dimmed ? 0.45 : 1)
@@ -125,18 +119,34 @@ struct AskDockView: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder
+    // Dock text scales off the slot like the other widgets' dock views.
+    private var title: some View {
+        Text("Ask")
+            .font(.system(size: dim * 0.22, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
     private var questionLine: some View {
-        if !model.question.isEmpty {
-            Text(model.question)
-                .foregroundStyle(.primary)
-        } else if !model.lastQuestion.isEmpty {
-            Text(model.lastQuestion)
-                .foregroundStyle(.primary)
-        } else {
-            Text("Ask anything…")
-                .foregroundStyle(.tertiary)
+        Group {
+            if !model.question.isEmpty {
+                Text(model.question)
+                    .foregroundStyle(.primary)
+            } else if !model.lastQuestion.isEmpty {
+                Text(model.lastQuestion)
+                    .foregroundStyle(.primary)
+            } else {
+                Text("Ask anything…")
+                    .foregroundStyle(.tertiary)
+            }
         }
+        .font(.system(size: dim * 0.2, weight: .medium))
+    }
+
+    private var answerLine: some View {
+        Text(model.answer)
+            .font(.system(size: dim * 0.18))
+            .foregroundStyle(.secondary)
     }
 
     private var dimmed: Bool {

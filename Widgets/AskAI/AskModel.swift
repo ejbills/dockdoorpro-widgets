@@ -20,11 +20,6 @@ final class AskModel {
         case failed(String)
     }
 
-    /// The model source for answering questions. Currently only local.
-    enum Source: String {
-        case local
-    }
-
     /// Text currently in the field.
     var question = ""
     /// The answer being streamed, or the last finished answer.
@@ -34,9 +29,6 @@ final class AskModel {
     var phase: Phase = .idle
     /// Briefly true after a tap copies the answer, to flash a checkmark.
     var justCopied = false
-    /// The selected model source; persisted per the house rule for runtime
-    /// state: `UserDefaults` under `<pluginId>.<key>`.
-    var source: Source = .local
 
     var isBusy: Bool {
         if case .thinking = phase { return true }
@@ -55,17 +47,6 @@ final class AskModel {
     /// characters or clearing and retyping does not re-warm.
     @ObservationIgnored private var hasStartedTypingFlag = false
 
-    /// Whether the user has already triggered the one-shot first-keystroke
-    /// warm in the current clear cycle. Exposed read/write so the panel can
-    /// mark the warm as having happened without reaching into a private flag.
-    ///
-    /// The SwiftUI `onChange(of:)` tracking identity uses the property name,
-    /// so this must be `hasStartedTyping`, not `hasStartedTypingFlag`.
-    var hasStartedTyping: Bool {
-        get { hasStartedTypingFlag }
-        set { hasStartedTypingFlag = newValue }
-    }
-
     /// Warms the on-device model on the user's first keystroke (not on panel
     /// open) so idle panels never load a model they may not use, while still
     /// cutting the first-answer startup cost once the user starts typing.
@@ -74,7 +55,7 @@ final class AskModel {
     /// `SystemLanguageModel`. The session here is throwaway — it exists only
     /// to prime the model and is not cached or reused for generation.
     func prewarm() {
-        guard source == .local, !hasStartedTypingFlag, #available(macOS 26.0, *) else { return }
+        guard !hasStartedTypingFlag, #available(macOS 26.0, *) else { return }
         guard case .available = SystemLanguageModel.default.availability else { return }
         hasStartedTypingFlag = true
         LanguageModelSession(instructions: Self.instructions).prewarm()
@@ -106,27 +87,24 @@ final class AskModel {
 
     /// `nil` when questions can be answered, otherwise a short human-readable reason.
     func availabilityMessage() -> String? {
-        switch source {
-        case .local:
-            if #available(macOS 26.0, *) {
-                switch SystemLanguageModel.default.availability {
-                case .available:
-                    return nil
-                case .unavailable(let reason):
-                    switch reason {
-                    case .appleIntelligenceNotEnabled:
-                        return "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri."
-                    case .deviceNotEligible:
-                        return "This Mac doesn't support Apple Intelligence."
-                    case .modelNotReady:
-                        return "The on-device model is still downloading. Try again in a minute."
-                    @unknown default:
-                        return "Apple's on-device model isn't available right now."
-                    }
+        if #available(macOS 26.0, *) {
+            switch SystemLanguageModel.default.availability {
+            case .available:
+                return nil
+            case .unavailable(let reason):
+                switch reason {
+                case .appleIntelligenceNotEnabled:
+                    return "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri."
+                case .deviceNotEligible:
+                    return "This Mac doesn't support Apple Intelligence."
+                case .modelNotReady:
+                    return "The on-device model is still downloading. Try again in a minute."
+                @unknown default:
+                    return "Apple's on-device model isn't available right now."
                 }
             }
-            return "Requires macOS 26 or later."
         }
+        return "Requires macOS 26 or later."
     }
 
     // MARK: - Actions
