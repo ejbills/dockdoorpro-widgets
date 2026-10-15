@@ -13,7 +13,9 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: macos-14
+    # macos-26 ships Xcode 26+, whose SDK includes the FoundationModels
+    # framework the Ask widget imports.
+    runs-on: macos-26
     permissions:
       pages: write
       id-token: write

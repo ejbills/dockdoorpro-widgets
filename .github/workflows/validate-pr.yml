@@ -9,7 +9,9 @@ env:
 
 jobs:
   validate:
-    runs-on: macos-14
+    # macos-26 ships Xcode 26+, whose SDK includes the FoundationModels
+    # framework the Ask widget imports.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
 
