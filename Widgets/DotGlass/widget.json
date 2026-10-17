@@ -1,0 +1,33 @@
+{
+  "id": "dot-glass",
+  "name": "Dot Glass",
+  "author": "appleforever11",
+  "description": "Your Dot in a glass conversation panel, with messages, voice calls and a cloud orb.",
+  "iconSymbol": "circle.circle",
+  "orientations": [
+    "horizontal",
+    "vertical"
+  ],
+  "principalClass": "DotGlassPlugin",
+  "sources": [
+    "DotConnection.swift",
+    "DotDirectory.swift",
+    "DotGlassPlugin.swift",
+    "DotGlassStyle.swift",
+    "DotModels.swift",
+    "DotOnboarding.swift",
+    "DotPageAdapter.swift",
+    "DotPanel.swift",
+    "DotPicker.swift",
+    "DotRing.swift",
+    "DotTheme.swift",
+    "DotTour.swift",
+    "DotTranscript.swift",
+    "DotVoiceAdapter.swift",
+    "DotWebSession.swift",
+    "DotRecovery.swift",
+    "DotAttachmentPreview.swift",
+    "DotVoiceOrb.swift",
+    "DotScriptHandler.swift"
+  ]
+}
