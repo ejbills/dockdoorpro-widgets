@@ -34,50 +34,64 @@ struct DotCompact: View {
     private var themeName: String { selectedTheme.rawValue }
     private var side: CGFloat { max(20, min(size.width, size.height)) }
     private var extendedVertical: Bool { vertical && size.height > size.width * 1.5 }
+    private var diameter: CGFloat {
+        (extendedVertical ? min(size.width, size.height * 0.58) : side) * WidgetMetrics.contentScale
+    }
+    /// Short enough to fit a dock slot; the accessibility label keeps the full wording.
     private var status: String {
-        if connection.voiceConnected { return connection.microphoneMuted ? "Call · muted" : "Call · mic on" }
-        if connection.voiceStarting { return "Calling…" }
-        if !connection.ready && !connection.loading && !connection.needsSetup { return "Open to connect" }
+        if connection.voiceConnected { return connection.microphoneMuted ? "Muted" : "On a call" }
+        if connection.voiceStarting { return "Calling" }
+        switch connection.connectionState {
+        case .setup: return "Set up"
+        case .authentication: return "Signing in"
+        case .connecting: return "Connecting"
+        case .reconnecting: return "Reconnecting"
+        case .ready: return "Connected"
+        case .paused: return "Offline"
+        case .deliveryAttention: return "Check delivery"
+        }
+    }
+    private var spokenStatus: String {
+        if connection.voiceConnected { return connection.microphoneMuted ? "On a call, microphone muted" : "On a call, microphone on" }
+        if connection.voiceStarting { return "Calling your Dot" }
         return connection.connectionState.rawValue
     }
     private var ring: some View {
-        DotRing(phase: connection.phase,
-                diameter: (extendedVertical ? min(size.width, size.height * 0.58) : side) * WidgetMetrics.contentScale,
-                audioLevel: connection.voiceLevel)
+        DotRing(phase: connection.phase, diameter: diameter, audioLevel: connection.voiceLevel)
+            .overlay(alignment: .bottomTrailing) {
+                if connection.voiceStarting || connection.voiceConnected {
+                    Image(systemName: connection.microphoneMuted ? "mic.slash.fill" : "mic.fill")
+                        .font(.system(size: diameter * 0.26, weight: .bold))
+                        .foregroundStyle(.white).padding(diameter * 0.08)
+                        .background(connection.microphoneMuted ? Color.orange : Color.red, in: Circle())
+                }
+            }
     }
     var body: some View {
         Group {
             if extendedVertical {
-                VStack(spacing: 6) {
+                VStack(spacing: size.width * WidgetMetrics.spacingScale) {
                     ring
                     Text(status)
-                        .font(.system(size: max(10, size.width * 0.15), weight: .medium))
-                        .lineLimit(2).multilineTextAlignment(.center)
+                        .font(.system(size: size.width * 0.2, weight: .medium))
+                        .lineLimit(1).minimumScaleFactor(0.6)
                         .frame(maxWidth: .infinity)
                 }
+                .padding(.horizontal, size.width * 0.06)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(spacing: 6) {
+                HStack(spacing: side * WidgetMetrics.spacingScale) {
                     ring
                     if !vertical && size.width > side * 1.6 {
                         Text(status)
-                            .font(.system(size: max(10, side * 0.2), weight: .medium))
-                            .lineLimit(1)
+                            .font(.system(size: side * 0.22, weight: .medium))
+                            .lineLimit(1).minimumScaleFactor(0.7)
                     }
                 }
             }
         }
         .contentShape(Rectangle())
-        .overlay(alignment: .bottomTrailing) {
-            if connection.voiceStarting || connection.voiceConnected {
-                Image(systemName: connection.microphoneMuted ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: max(10, side * 0.19), weight: .bold))
-                    .foregroundStyle(.white).padding(4)
-                    .background(connection.microphoneMuted ? Color.orange : Color.red, in: Circle())
-                    .accessibilityLabel(connection.microphoneMuted ? "Call active, microphone muted" : "Call active, microphone on")
-            }
-        }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Dot Glass, \(themeName). \(status). Open conversation panel.")
+        .accessibilityLabel("Dot Glass, \(themeName). \(spokenStatus). Open conversation panel.")
     }
 }
