@@ -5,6 +5,10 @@ A dock lives in Docks/<pack-id>/ as pack.json plus at most one background image
 named <assetKey>.jpg or <assetKey>.heic. pack.json carries no inline `data` and
 no `url`; the catalog generator adds urls. The caps mirror the app's decoder
 (docs/community-docks.md in the DockDoor Pro repo).
+
+A dock is verified when its id is listed in verified-docks.json at the repo
+root. Only the maintainer edits that file; the catalog generator turns it into
+`author.isOfficial`, which a pack.json may never set itself.
 """
 import hashlib
 import json
@@ -14,8 +18,8 @@ from pathlib import Path
 
 PACK_FILE = "pack.json"
 FORMAT_VERSION = 2
-ORIGINALS_PREFIX = "originals."
-ID_PATTERN = re.compile(r"^(originals\.[a-z0-9]+(?:-[a-z0-9]+)*|community\.(?:[a-z0-9]{12}|[a-z0-9]+(?:-[a-z0-9]+)*))$")
+VERIFIED_FILE = "verified-docks.json"
+ID_PATTERN = re.compile(r"^community\.[a-z0-9]+(?:-[a-z0-9]+)*$")
 ASSET_KEY = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 IGNORED_ENTRIES = {".DS_Store"}
@@ -45,8 +49,18 @@ class DockRuleError(Exception):
         self.problems = problems
 
 
-def is_official_id(pack_id: str) -> bool:
-    return pack_id.startswith(ORIGINALS_PREFIX)
+def load_verified(root: Path) -> set:
+    """The verified dock ids from verified-docks.json (a JSON list of pack ids)."""
+    path = root / VERIFIED_FILE
+    if not path.is_file():
+        return set()
+    try:
+        ids = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise DockRuleError([f"{VERIFIED_FILE} is not valid JSON: {error}"])
+    if not isinstance(ids, list) or any(not isinstance(i, str) or not ID_PATTERN.match(i) for i in ids):
+        raise DockRuleError([f"{VERIFIED_FILE} must be a JSON list of community.<slug> ids"])
+    return set(ids)
 
 
 def jpeg_size(data: bytes):
@@ -117,7 +131,7 @@ def check_metadata(folder: Path, pack: dict) -> list[str]:
         problems.append(f"'format' must be {FORMAT_VERSION}")
     pack_id = pack.get("id")
     if not isinstance(pack_id, str) or not ID_PATTERN.match(pack_id):
-        problems.append("'id' must be originals.<slug> or community.<slug> (lowercase letters, digits, hyphens)")
+        problems.append("'id' must be community.<slug> (lowercase letters, digits, hyphens)")
     elif pack_id != folder.name:
         problems.append(f"folder name '{folder.name}' must equal the pack id '{pack_id}'")
     name = pack.get("name")
@@ -134,8 +148,8 @@ def check_metadata(folder: Path, pack: dict) -> list[str]:
     author = pack.get("author")
     if not isinstance(author, dict) or not isinstance(author.get("name"), str):
         problems.append("'author' must be an object with a 'name'")
-    elif author.get("isOfficial") is True:
-        problems.append("'author.isOfficial' must not be true; officialness comes only from the originals. id prefix")
+    elif "isOfficial" in author:
+        problems.append(f"'author.isOfficial' must not be set; verified docks are listed in {VERIFIED_FILE}")
     if "createdAt" in pack and not isinstance(pack["createdAt"], str):
         problems.append("'createdAt' must be an ISO 8601 string")
     return problems

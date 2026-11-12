@@ -7,7 +7,7 @@ exits non-zero on any violation.
 import sys
 from pathlib import Path
 
-from dock_rules import DockRuleError, IGNORED_ENTRIES, validate
+from dock_rules import DockRuleError, IGNORED_ENTRIES, VERIFIED_FILE, load_verified, validate
 
 
 def main() -> int:
@@ -15,6 +15,7 @@ def main() -> int:
     docks_dir = root / "Docks"
     failed = False
     count = 0
+    seen = set()
 
     if docks_dir.is_dir():
         for folder in sorted(docks_dir.iterdir()):
@@ -33,7 +34,19 @@ def main() -> int:
                 failed = True
                 continue
             count += 1
+            seen.add(pack["id"])
             print(f"ok  {folder.name} ({pack['name']})")
+
+    try:
+        missing = sorted(load_verified(root) - seen)
+    except DockRuleError as error:
+        missing = []
+        for problem in error.problems:
+            print(f"::error file={VERIFIED_FILE}::{problem}")
+        failed = True
+    for pack_id in missing:
+        print(f"::error file={VERIFIED_FILE}::{pack_id} is listed but has no Docks/ folder")
+        failed = True
 
     if failed:
         return 1

@@ -9,8 +9,8 @@ dock_rules.py. An existing folder is left alone unless --replace is given. Any
 failure prints a clear message and the exit status is nonzero; packs that
 passed are still imported.
 
-For originals.* ids, `author.isOfficial` is cleared on import: officialness
-comes from the id prefix alone and the rules reject the flag everywhere.
+`author.isOfficial` is dropped on import: verified docks are listed in
+verified-docks.json and the rules reject the flag in pack.json.
 """
 import argparse
 import base64
@@ -23,7 +23,7 @@ import tempfile
 from pathlib import Path
 
 from dock_rules import (
-    ASSET_KEY, ASSET_TYPES, DockRuleError, ID_PATTERN, PACK_FILE, asset_path, heic_size, is_official_id, jpeg_size, validate,
+    ASSET_KEY, ASSET_TYPES, DockRuleError, ID_PATTERN, PACK_FILE, asset_path, heic_size, jpeg_size, validate,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,10 +40,10 @@ def stage(source: Path, staging: Path) -> str:
         raise DockRuleError(["pack must be a JSON object"])
     pack_id = pack.get("id")
     if not isinstance(pack_id, str) or not ID_PATTERN.match(pack_id):
-        raise DockRuleError(["'id' must be originals.<slug> or community.<slug> (lowercase letters, digits, hyphens)"])
+        raise DockRuleError(["'id' must be community.<slug> (lowercase letters, digits, hyphens)"])
 
-    if is_official_id(pack_id) and isinstance(pack.get("author"), dict):
-        pack["author"]["isOfficial"] = False
+    if isinstance(pack.get("author"), dict):
+        pack["author"].pop("isOfficial", None)
 
     folder = staging / pack_id
     folder.mkdir()

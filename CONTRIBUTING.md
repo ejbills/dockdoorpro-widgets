@@ -451,4 +451,4 @@ Open your dock in DockDoor Pro and press **Publish**. I review every submission 
 4. Run `python3 scripts/validate-docks.py` and fix anything it reports
 5. Open a PR
 
-The limits: name up to 40 characters, tagline up to 80, up to 5 tags of 24 characters, one background image (JPEG or HEIC, 400 KB, longest side 2560 px). `author.isOfficial` is rejected; only DockDoor's own `originals.` docks are official. CI runs the same validation on your PR.
+The limits: name up to 40 characters, tagline up to 80, up to 5 tags of 24 characters, one background image (JPEG or HEIC, 400 KB, longest side 2560 px). `author.isOfficial` is rejected; the verified check comes from `verified-docks.json`, which only the maintainer edits. CI runs the same validation on your PR.
