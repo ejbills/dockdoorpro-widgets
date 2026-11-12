@@ -1,0 +1,160 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 88151,
+      "height": 320,
+      "sha256": "0923a32cd05751a915978e51d6506067b42def0448880d62751e97b881db39b3",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 1.0,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "triangle.circle.square",
+  "id": "originals.bauhaus-desk",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 1.0,
+    "dockBackgroundBorderWidth": 3,
+    "dockBackgroundLightOverlay": 0.0,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 6,
+    "dockBackgroundStyle": "frostedMaterial",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "light",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 46,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.5,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "frostedMaterial",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.82,
+      "green": 0.92,
+      "red": 0.96
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 0.95,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Bauhaus Desk",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#F4EDDB",
+        "#E1C27A"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Focus",
+      "slotSize": "triple",
+      "widgetIds": [
+        "dayProgress",
+        "todo",
+        "pomodoro"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "155C6765-20FC-59D6-8DE4-5D7EA480E1DB",
+          "typeId": "dayProgress"
+        },
+        {
+          "contentScale": 1,
+          "id": "6C9C44B2-383B-5138-84AC-C54F62CCE37D",
+          "typeId": "todo"
+        },
+        {
+          "contentScale": 1,
+          "id": "2A43A699-EF14-5D0B-8211-9C62E58B5144",
+          "typeId": "pomodoro"
+        }
+      ]
+    }
+  ],
+  "tagline": "Primary-color shapes under bright frosted glass and a wide focus stack",
+  "tags": [
+    "light",
+    "frosted",
+    "widgets",
+    "bold"
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 249383,
+      "height": 320,
+      "sha256": "0501a6e32838218a7504574d9dd0fc8692523c44b10da479ac903357050d8747",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 1.0,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "shippingbox",
+  "id": "originals.kraft-bar",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "kind": "spacer"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.0,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.0,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "frostedMaterial",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "light",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 40,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "taskbar",
+    "enableMagnification": false,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 8,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "frostedMaterial",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.82,
+      "green": 0.92,
+      "red": 0.97
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 0.95,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Kraft Bar",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#E4D5BE",
+        "#B89A78"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Desk Tools",
+      "slotSize": "double",
+      "widgetIds": [
+        "calculator",
+        "converter"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "00DA5A5A-4C77-5B3F-9701-A528C8BA9E3E",
+          "typeId": "calculator"
+        },
+        {
+          "contentScale": 1,
+          "id": "0B9AD871-1CF3-5DC1-B1C7-B140C647F9EE",
+          "typeId": "converter"
+        }
+      ]
+    }
+  ],
+  "tagline": "A taskbar of stitched brown paper with plain dots and a calculator",
+  "tags": [
+    "light",
+    "taskbar",
+    "retro",
+    "widgets"
+  ]
+}

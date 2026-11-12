@@ -1,0 +1,174 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 131912,
+      "height": 320,
+      "sha256": "3d060254c49c881982e5a437048743d4bc1b59284ced777f93dd7982a42f7468",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.85,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "moon.stars",
+  "id": "originals.midnight-tide",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 0.9,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.35,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 22,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 56,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "dock",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": true,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.3,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 180,
+    "magnificationScale": 1.8,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Midnight Tide",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#070B1A",
+        "#1B2A5C"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "reflectiveShelf",
+        "level": 1,
+        "name": "Reflective Shelf"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Now Playing",
+      "slotSize": "double",
+      "widgetIds": [
+        "nowPlaying"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "nowPlaying",
+            "nowPlaying": {
+              "clickAlwaysTogglesPlayPause": false,
+              "idleSymbol": "music.quarternote.3",
+              "panelMode": "compact",
+              "showVolumeWhenIdle": false
+            }
+          },
+          "contentScale": 1,
+          "id": "5CC1189D-8531-558C-9216-29931F3F35AE",
+          "typeId": "nowPlaying"
+        }
+      ]
+    }
+  ],
+  "tagline": "Deep blue glass on a mirrored shelf, with aurora light under the icons",
+  "tags": [
+    "dark",
+    "glass",
+    "widgets",
+    "bold"
+  ]
+}

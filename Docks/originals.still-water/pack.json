@@ -1,0 +1,122 @@
+{
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "drop",
+  "id": "originals.still-water",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 0.7,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": false,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.5,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 24,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "system",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 48,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "clearGlass",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.06,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "breathe",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.3,
+    "magnificationStyle": "bounce",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Still Water",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#C9D6D2",
+        "#7FA39B"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "bounceMagnification",
+        "level": 1,
+        "name": "Bounce Magnification"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [],
+  "tagline": "Clear glass and a slow breathing hover; nothing in a hurry",
+  "tags": [
+    "calm",
+    "glass",
+    "minimal",
+    "light",
+    "dark"
+  ]
+}

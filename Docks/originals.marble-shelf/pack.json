@@ -1,0 +1,202 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 71254,
+      "height": 320,
+      "sha256": "fc506f1224a10790ea3125e7a43f94d3aea87622b887ad85f475b93a66704d2d",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.9,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {
+    "dockBackgroundStyle": [
+      "frostedMaterial"
+    ],
+    "panelBackgroundStyle": [
+      "frostedMaterial"
+    ]
+  },
+  "format": 2,
+  "icon": "rhombus",
+  "id": "originals.marble-shelf",
+  "layout": [
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s1"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 2,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.8,
+    "dockBackgroundBorderWidth": 1,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "liquidGlass",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "light",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 52,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "keyboard",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": true,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.1,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "liquidGlass",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "siriSnippet",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Marble Shelf",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#E6EDF2",
+        "#B7C7D6"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "liquidGlass",
+        "level": 1,
+        "name": "Liquid Glass"
+      },
+      {
+        "id": "reflectiveShelf",
+        "level": 1,
+        "name": "Reflective Shelf"
+      },
+      {
+        "id": "widgetStyleVariants",
+        "level": 1,
+        "name": "Widget Styles"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Flip Clock + Weather",
+      "slotSize": "double",
+      "widgetIds": [
+        "clock",
+        "weather"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "clock": {
+              "dateFormat": "system",
+              "showAnalogFace": false,
+              "showDate": false,
+              "showSeconds": false,
+              "timezoneIdentifier": "",
+              "use24Hour": false
+            },
+            "kind": "clock"
+          },
+          "contentScale": 1,
+          "id": "26F5451F-20CE-525F-9FCA-C20A588D7EDF",
+          "options": {
+            "variant": {
+              "string": "flipClock"
+            }
+          },
+          "typeId": "clock"
+        },
+        {
+          "builtInSettings": {
+            "kind": "weather",
+            "weather": {
+              "locationLat": 0,
+              "locationLon": 0,
+              "locationName": "",
+              "temperatureUnit": "system",
+              "useCurrentLocation": true
+            }
+          },
+          "contentScale": 1,
+          "id": "E83E13E8-4CD8-54F4-87EE-25809F6E1010",
+          "typeId": "weather"
+        }
+      ]
+    }
+  ],
+  "tagline": "Veined white marble on a mirrored shelf, with a flip clock and the weather",
+  "tags": [
+    "light",
+    "glass",
+    "widgets",
+    "bold"
+  ]
+}

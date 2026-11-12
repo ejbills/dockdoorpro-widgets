@@ -1,0 +1,164 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 137948,
+      "height": 2400,
+      "sha256": "fd8d58db033c920a1b66267099d82997c3039c1e9b73d2016945f8f7ff799048",
+      "type": "public.jpeg",
+      "width": 320
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.9,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "lollipop",
+  "id": "originals.candy-totem",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": false,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 1.0,
+    "dockBackgroundBorderWidth": 3,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 24,
+    "dockBackgroundStyle": "solidColor",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "light",
+    "dockControlsCardBackground": false,
+    "dockEdgePadding": 4,
+    "dockIconSize": 48,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "left",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "floating",
+    "enableMagnification": true,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 4,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.5,
+    "magnificationStyle": "wave",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "solidColor",
+    "runningAppIndicatorStyle": "card",
+    "showDockSeparators": true,
+    "showProfileButton": false,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.52,
+      "green": 0.18,
+      "red": 1.0
+    },
+    "tintIconCardsWithAppColors": false,
+    "widgetCardBackgroundColor": {
+      "blue": 0.98,
+      "green": 0.96,
+      "red": 1.0
+    },
+    "widgetCardBackgroundFill": "solidColor",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": false,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "clearGlass",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Candy Totem",
+  "preview": {
+    "wallpaper": {
+      "appearance": "light",
+      "colors": [
+        "#FFD1E3",
+        "#FF5C9E"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": [
+      {
+        "id": "verticalDock",
+        "level": 1,
+        "name": "Vertical Dock"
+      },
+      {
+        "id": "waveMagnification",
+        "level": 1,
+        "name": "Wave Magnification"
+      },
+      {
+        "id": "backgroundImage",
+        "level": 1,
+        "name": "Dock Background Image"
+      }
+    ]
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Timers",
+      "slotSize": "double",
+      "widgetIds": [
+        "pomodoro",
+        "stopwatch"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "F706C6CA-839D-5F1B-8F45-37800A87B694",
+          "typeId": "pomodoro"
+        },
+        {
+          "contentScale": 1,
+          "id": "343C2188-2DFF-547C-97B2-10335FD26FC1",
+          "typeId": "stopwatch"
+        }
+      ]
+    }
+  ],
+  "tagline": "A hot pink left rail with candy stripes, a pomodoro timer and a stopwatch",
+  "tags": [
+    "vertical",
+    "solid",
+    "bold",
+    "playful"
+  ]
+}

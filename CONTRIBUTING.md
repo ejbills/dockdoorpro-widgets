@@ -430,3 +430,25 @@ bash scripts/build-widgets.sh Widgets/YourWidget
 5. Open a PR
 
 CI runs the same validation (folder contents, `widget.json` fields, `preview.png`, lint) before it compiles anything. I'll review the code and merge if it's good.
+
+# Sharing a dock
+
+A dock is a shareable look for DockDoor Pro: appearance settings, a layout skeleton, built-in widgets and an optional background image. It never contains apps, folders, files or links.
+
+## From the app
+
+Open your dock in DockDoor Pro and press **Publish**. I review every submission before it appears in Community Docks.
+
+## From GitHub
+
+1. Export the dock from the app as a `.dockdoorpack` file
+2. Open the file and set the pack `id` to `community.<slug>` (lowercase letters, digits and hyphens, for example `community.sunset-glass`)
+3. Import it into this repo:
+   ```bash
+   python3 scripts/import_dockdoorpack.py MyDock.dockdoorpack
+   ```
+   This writes `Docks/<pack-id>/pack.json` plus the background image next to it, and checks everything against the rules. The folder name always matches the id
+4. Run `python3 scripts/validate-docks.py` and fix anything it reports
+5. Open a PR
+
+The limits: name up to 40 characters, tagline up to 80, up to 5 tags of 24 characters, one background image (JPEG or HEIC, 400 KB, longest side 2560 px). `author.isOfficial` is rejected; only DockDoor's own `originals.` docks are official. CI runs the same validation on your PR.

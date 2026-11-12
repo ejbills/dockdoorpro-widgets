@@ -1,0 +1,182 @@
+{
+  "assets": {
+    "bg": {
+      "bytes": 238351,
+      "height": 320,
+      "sha256": "be4612461a61306c45d55fc292d4b2457f1e4f9920fcb7e9007d7d976467eb22",
+      "type": "public.jpeg",
+      "width": 2400
+    }
+  },
+  "author": {
+    "id": "dockdoor",
+    "isOfficial": false,
+    "name": "DockDoor"
+  },
+  "background": {
+    "asset": "bg",
+    "opacity": 0.95,
+    "scale": 1.0
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "fallbacks": {},
+  "format": 2,
+  "icon": "gearshape.2",
+  "id": "originals.steel-bar",
+  "layout": [
+    {
+      "kind": "stack",
+      "stack": "s1"
+    },
+    {
+      "edge": "leading",
+      "kind": "zone"
+    },
+    {
+      "kind": "apps"
+    },
+    {
+      "kind": "runningApps"
+    },
+    {
+      "kind": "spacer"
+    },
+    {
+      "edge": "trailing",
+      "kind": "zone"
+    },
+    {
+      "kind": "stack",
+      "stack": "s2"
+    }
+  ],
+  "look": {
+    "cardBackgroundOpacity": 1,
+    "cardCornerRadiusExtra": 0,
+    "cardGlimmerEnabled": true,
+    "cardStrokeEnabled": true,
+    "compactProfileButton": true,
+    "dockBackgroundBorderOpacity": 0.4,
+    "dockBackgroundBorderWidth": 0.5,
+    "dockBackgroundLightOverlay": 0.15,
+    "dockBackgroundMaterial": "ultraThin",
+    "dockBackgroundRadius": 14,
+    "dockBackgroundStyle": "frostedMaterial",
+    "dockBackgroundStyleDockOnly": false,
+    "dockColorScheme": "dark",
+    "dockControlsCardBackground": true,
+    "dockEdgePadding": 4,
+    "dockIconSize": 36,
+    "dockLiquidCrestEnabled": false,
+    "dockLiquidGlassFlavor": "controlCenter",
+    "dockPosition": "bottom",
+    "dockReflectiveShelf": false,
+    "dockScreenMargin": 0,
+    "dockStyle": "taskbar",
+    "enableMagnification": false,
+    "enhancedRunningIndicators": true,
+    "focusedAppHandleBar": true,
+    "glassBackingOpacity": 0.05,
+    "iconInsetPadding": 4,
+    "iconRowOuterPadding": 0,
+    "iconSpacing": 5,
+    "magnificationBounceMotion": "hop",
+    "magnificationDistance": 150,
+    "magnificationScale": 1.6,
+    "magnificationStyle": "scale",
+    "magnifyDockControls": false,
+    "panelBackgroundStyle": "frostedMaterial",
+    "runningAppIndicatorStyle": "dot",
+    "showDockSeparators": true,
+    "showProfileButton": true,
+    "showSingleWindowDot": false,
+    "solidBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "tintIconCardsWithAppColors": true,
+    "widgetCardBackgroundColor": {
+      "blue": 0.13,
+      "green": 0.12,
+      "red": 0.12
+    },
+    "widgetCardBackgroundFill": "standard",
+    "widgetCardBackgroundOpacity": 1,
+    "widgetCardGlimmerEnabled": true,
+    "widgetCardStrokeEnabled": true,
+    "widgetGap": 4,
+    "widgetLiquidGlassFlavor": "regular",
+    "widgetMagnificationScope": "floatingOnly",
+    "widgetStackStyle": "card"
+  },
+  "name": "Steel Bar",
+  "preview": {
+    "wallpaper": {
+      "appearance": "dark",
+      "colors": [
+        "#2A2E35",
+        "#15171B"
+      ]
+    }
+  },
+  "requires": {
+    "featureLevel": 1,
+    "features": []
+  },
+  "revision": 1,
+  "stacks": [
+    {
+      "activeIndex": 0,
+      "id": "s1",
+      "name": "Show Desktop",
+      "slotSize": "single",
+      "widgetIds": [
+        "showDesktop"
+      ],
+      "widgetInstances": [
+        {
+          "builtInSettings": {
+            "kind": "showDesktop",
+            "showDesktop": {
+              "hidesDock": false,
+              "symbol": "window.awning"
+            }
+          },
+          "contentScale": 1,
+          "id": "6CD367CA-F867-5C4E-9374-A6711701D3B1",
+          "typeId": "showDesktop"
+        }
+      ]
+    },
+    {
+      "activeIndex": 0,
+      "id": "s2",
+      "name": "Load",
+      "slotSize": "double",
+      "widgetIds": [
+        "cpu",
+        "memory"
+      ],
+      "widgetInstances": [
+        {
+          "contentScale": 1,
+          "id": "63FB2BDA-3201-59EE-9D4D-B620E7E16559",
+          "typeId": "cpu"
+        },
+        {
+          "contentScale": 1,
+          "id": "706ED015-BF67-5A19-8A1D-0DC42AFED270",
+          "typeId": "memory"
+        }
+      ]
+    }
+  ],
+  "tagline": "A brushed-metal taskbar with a blue edge, show desktop and live system stats",
+  "tags": [
+    "taskbar",
+    "dark",
+    "pro",
+    "widgets"
+  ]
+}
