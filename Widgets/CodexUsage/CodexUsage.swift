@@ -66,7 +66,6 @@ private struct CodexUsageCompactView: View {
             }
         }
         .padding(contentInset)
-        .modifier(DockInstrumentSurface(size: size, accent: theme.accent))
         .task {
             while !Task.isCancelled {
                 now = Date()

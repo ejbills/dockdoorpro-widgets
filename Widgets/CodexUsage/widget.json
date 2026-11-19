@@ -17,7 +17,6 @@
         "CodexIdentityArtwork.swift",
         "CodexUsageAnalytics.swift",
         "CodexDashboardLayout.swift",
-        "CodexDashboardCards.swift",
-        "DockInstrumentSurface.swift"
+        "CodexDashboardCards.swift"
     ]
 }
