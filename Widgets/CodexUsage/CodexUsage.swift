@@ -51,26 +51,32 @@ private struct CodexUsageCompactView: View {
     private var isExtended: Bool {
         isVertical ? size.height > size.width * 1.5 : size.width > size.height * 1.5
     }
-    private var card: CodexUsageCard { snapshot.card(at: now) }
+    /// Taller horizontal slots carry the model in a header line, so the model
+    /// card leaves the rotation there instead of repeating it.
+    private var showsModelHeader: Bool {
+        isExtended && !isVertical && size.height >= 44 && snapshot.modelContext != nil
+    }
+    private var card: CodexUsageCard { snapshot.card(at: now, includeModel: !showsModelHeader) }
     // The host clips content to the dock card, so leave a margin rather than
     // running the ring and its glow into the slot edge.
     private var contentInset: CGFloat { max(2, dim * 0.05) }
     private var ringSize: CGFloat { min(max(dim * 0.60, 20), 34) }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 2)) { timeline in
-        Group {
-            if isExtended {
-                extendedLayout
-            } else {
-                compactLayout
+        // Matches the card cycle; tick() throttles the reads themselves.
+        TimelineView(.periodic(from: .now, by: 4)) { timeline in
+            Group {
+                if isExtended {
+                    extendedLayout
+                } else {
+                    compactLayout
+                }
             }
-        }
-        .padding(contentInset)
-        .task(id: timeline.date) {
-            now = timeline.date
-            await model.tick()
-        }
+            .padding(contentInset)
+            .task(id: timeline.date) {
+                now = timeline.date
+                await model.tick()
+            }
         }
     }
 
@@ -121,6 +127,13 @@ private struct CodexUsageCompactView: View {
 
     private func usageLabels(alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 1) {
+            if showsModelHeader, let context = snapshot.modelContext {
+                Text(context.summary)
+                    .font(.system(size: max(8, min(dim * 0.18, 9.5)), weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
             Text(card.title)
                 .font(.system(size: max(10, min(dim * 0.24, 13)), weight: .bold, design: .rounded))
                 .lineLimit(1)
@@ -293,7 +306,7 @@ struct CodexUsageSnapshot {
         return primaryLimit.resetLabel == "No reset date" ? "No reset date in local snapshot" : "Resets \(primaryLimit.resetLabel)"
     }
 
-    func card(at date: Date) -> CodexUsageCard {
+    func card(at date: Date, includeModel: Bool = true) -> CodexUsageCard {
         var cards = limits.map { limit in
             CodexUsageCard(
                 title: limit.percentLabel,
@@ -302,7 +315,7 @@ struct CodexUsageSnapshot {
                 percentRemaining: limit.percentRemaining
             )
         }
-        if let modelContext {
+        if includeModel, let modelContext {
             cards.append(CodexUsageCard(
                 title: modelContext.modelLabel,
                 subtitle: "\(modelContext.reasoningLabel) effort",
@@ -350,7 +363,7 @@ struct CodexModelContext {
     var modelLabel: String {
         guard let model, !model.isEmpty else { return "Model unavailable" }
         switch model.lowercased() {
-        case let value where value.contains("astra"): return "Astra"
+        case let value where value.contains("astra"): return generationLabel("Astra", model: model)
         case let value where value.contains("luna"): return generationLabel("Luna", model: model)
         case let value where value.contains("terra"): return "Terra"
         case let value where value.contains("sol"): return generationLabel("Sol", model: model)
@@ -436,17 +449,42 @@ struct CodexUsageLimit: Identifiable {
     }
 }
 
-private enum CodexUsageStore {
+private actor CodexUsageStore {
+    static let shared = CodexUsageStore()
+    private struct Stamp: Equatable {
+        let url: URL
+        let modified: Date?
+        let size: Int?
+        let inode: UInt64?
+        init(_ url: URL) {
+            self.url = url
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            modified = attributes?[.modificationDate] as? Date
+            size = attributes?[.size] as? Int
+            inode = attributes?[.systemFileNumber] as? UInt64
+        }
+    }
+    private var stamps: [Stamp] = []
+    private var cached = CodexUsageSnapshot.empty
+    private var checked: ContinuousClock.Instant?
+
     private static let usageURL = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".codex/usage.json")
 
-    static func read() -> CodexUsageSnapshot {
-        // usage.json is an optional override for people maintaining the file
-        // with their own tooling; Codex's own session logs are the default source.
-        if let override = readUsageFile() {
-            return override.withModelContext(CodexSessionsStore.latestModelContext())
+    func read() -> CodexUsageSnapshot {
+        let files = CodexSessionsStore.recentRolloutFiles(limit: 8)
+        let inputs = ([Self.usageURL] + files).map(Stamp.init)
+        if inputs == stamps, let checked, checked.duration(to: .now) < .seconds(60) {
+            return cached
         }
-        return CodexSessionsStore.read() ?? .empty
+        if let override = Self.readUsageFile() {
+            cached = override.withModelContext(CodexSessionsStore.latestModelContext(in: files))
+        } else {
+            cached = CodexSessionsStore.read(files: files) ?? .empty
+        }
+        stamps = inputs
+        checked = .now
+        return cached
     }
 
     private static func readUsageFile() -> CodexUsageSnapshot? {
@@ -544,8 +582,7 @@ enum CodexSessionsStore {
     private static let sessionsURL = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".codex/sessions")
 
-    static func read() -> CodexUsageSnapshot? {
-        let files = recentRolloutFiles(limit: 8)
+    static func read(files: [URL]) -> CodexUsageSnapshot? {
         let modelContext = latestModelContext(in: files)
         for fileURL in files {
             if let snapshot = latestSnapshot(in: fileURL) {
@@ -553,10 +590,6 @@ enum CodexSessionsStore {
             }
         }
         return modelContext.map { CodexUsageSnapshot(limits: [], creditsBalance: nil, modelContext: $0) }
-    }
-
-    static func latestModelContext() -> CodexModelContext? {
-        latestModelContext(in: recentRolloutFiles(limit: 8))
     }
 
     // Directory and file names sort chronologically (YYYY/MM/DD, timestamped
@@ -590,7 +623,11 @@ enum CodexSessionsStore {
     /// Like the rate limits, only the newest line matters, so this is a
     /// backwards marker search rather than a decode of every line: rollout
     /// files run to tens of megabytes and this is called every few seconds.
-    private static func latestModelContext(in files: [URL]) -> CodexModelContext? {
+    /// Subagent sessions (Codex's auto-review and the like) run their own
+    /// model, not the one the user picked, so they're skipped here; their
+    /// rate limits are still the account's and stay in `read(files:)`.
+    static func latestModelContext(in files: [URL]) -> CodexModelContext? {
+        let files = files.filter { !isSubagentSession($0) }
         for marker in ["\"turn_context\"", "\"thread_settings_applied\""] {
             for fileURL in files {
                 if let context = latestLine(in: fileURL, marker: marker, decode: decodeModelContext) {
@@ -604,7 +641,7 @@ enum CodexSessionsStore {
     /// Walks a rollout file backwards from the last occurrence of `marker`,
     /// returning the first line `decode` accepts.
     private static func latestLine<T>(in fileURL: URL, marker: String, decode: (Data) -> T?) -> T? {
-        guard let data = try? Data(contentsOf: fileURL), !data.isEmpty else { return nil }
+        guard let data = try? Data(contentsOf: fileURL, options: .alwaysMapped), !data.isEmpty else { return nil }
         let marker = Data(marker.utf8)
         let newline = UInt8(ascii: "\n")
         var searchRange = data.range(of: marker, options: .backwards)
@@ -618,6 +655,16 @@ enum CodexSessionsStore {
             searchRange = data[..<lineStart].range(of: marker, options: .backwards)
         }
         return nil
+    }
+
+    /// The first line of every rollout is its `session_meta`.
+    private static func isSubagentSession(_ fileURL: URL) -> Bool {
+        guard let data = try? Data(contentsOf: fileURL, options: .alwaysMapped) else { return false }
+        let firstLine = data.prefix { $0 != UInt8(ascii: "\n") }
+        guard let meta = try? JSONDecoder().decode(SessionMetaLine.self, from: firstLine),
+              meta.type == "session_meta"
+        else { return false }
+        return meta.payload?.source?.isSubagent == true
     }
 
     private static func decodeModelContext(from line: Data) -> CodexModelContext? {
@@ -744,6 +791,27 @@ enum CodexSessionsStore {
         }
     }
 
+    private struct SessionMetaLine: Decodable {
+        let type: String?
+        let payload: Payload?
+
+        struct Payload: Decodable {
+            let source: Source?
+        }
+
+        /// A plain string ("cli", "vscode", "exec") for sessions the user
+        /// drives, `{"subagent": ...}` for ones Codex spawns itself.
+        struct Source: Decodable {
+            let isSubagent: Bool
+
+            init(from decoder: Decoder) throws {
+                isSubagent = (try? decoder.container(keyedBy: Key.self).contains(.subagent)) ?? false
+            }
+
+            private enum Key: String, CodingKey { case subagent }
+        }
+    }
+
     private struct RateLimits: Decodable {
         let primary: Window?
         let secondary: Window?
@@ -849,7 +917,7 @@ final class CodexUsageModel {
     func tick(minimumInterval: TimeInterval = 5) async {
         guard !isReading, lastRead.map({ Date().timeIntervalSince($0) >= minimumInterval }) ?? true else { return }
         isReading = true
-        let value = await Task.detached(priority: .utility) { CodexUsageStore.read() }.value
+        let value = await CodexUsageStore.shared.read()
         snapshot = value
         lastRead = Date()
         isReading = false
