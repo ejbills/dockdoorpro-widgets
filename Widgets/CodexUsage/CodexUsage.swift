@@ -51,26 +51,31 @@ private struct CodexUsageCompactView: View {
     private var isExtended: Bool {
         isVertical ? size.height > size.width * 1.5 : size.width > size.height * 1.5
     }
-    private var card: CodexUsageCard { snapshot.card(at: now) }
+    /// Taller horizontal slots carry the model in a header line, so the model
+    /// card leaves the rotation there instead of repeating it.
+    private var showsModelHeader: Bool {
+        isExtended && !isVertical && size.height >= 44 && snapshot.modelContext != nil
+    }
+    private var card: CodexUsageCard { snapshot.card(at: now, includeModel: !showsModelHeader) }
     // The host clips content to the dock card, so leave a margin rather than
     // running the ring and its glow into the slot edge.
     private var contentInset: CGFloat { max(2, dim * 0.05) }
     private var ringSize: CGFloat { min(max(dim * 0.60, 20), 34) }
 
     var body: some View {
-        Group {
-            if isExtended {
-                extendedLayout
-            } else {
-                compactLayout
+        // Matches the card cycle; tick() throttles the reads themselves.
+        TimelineView(.periodic(from: .now, by: 4)) { timeline in
+            Group {
+                if isExtended {
+                    extendedLayout
+                } else {
+                    compactLayout
+                }
             }
-        }
-        .padding(contentInset)
-        .task {
-            while !Task.isCancelled {
-                now = Date()
+            .padding(contentInset)
+            .task(id: timeline.date) {
+                now = timeline.date
                 await model.tick()
-                try? await Task.sleep(for: .seconds(4))
             }
         }
     }
@@ -122,11 +127,12 @@ private struct CodexUsageCompactView: View {
 
     private func usageLabels(alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 1) {
-            if !isVertical, size.height >= 44, let label = snapshot.modelContext?.modelLabel, label != card.title {
-                Text(label)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+            if showsModelHeader, let context = snapshot.modelContext {
+                Text(context.summary)
+                    .font(.system(size: max(8, min(dim * 0.18, 9.5)), weight: .bold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.68)
             }
             Text(card.title)
                 .font(.system(size: max(10, min(dim * 0.24, 13)), weight: .bold, design: .rounded))
@@ -300,7 +306,7 @@ struct CodexUsageSnapshot {
         return primaryLimit.resetLabel == "No reset date" ? "No reset date in local snapshot" : "Resets \(primaryLimit.resetLabel)"
     }
 
-    func card(at date: Date) -> CodexUsageCard {
+    func card(at date: Date, includeModel: Bool = true) -> CodexUsageCard {
         var cards = limits.map { limit in
             CodexUsageCard(
                 title: limit.percentLabel,
@@ -309,7 +315,7 @@ struct CodexUsageSnapshot {
                 percentRemaining: limit.percentRemaining
             )
         }
-        if let modelContext {
+        if includeModel, let modelContext {
             cards.append(CodexUsageCard(
                 title: modelContext.modelLabel,
                 subtitle: "\(modelContext.reasoningLabel) effort",
@@ -357,7 +363,7 @@ struct CodexModelContext {
     var modelLabel: String {
         guard let model, !model.isEmpty else { return "Model unavailable" }
         switch model.lowercased() {
-        case let value where value.contains("astra"): return value.hasPrefix("gpt-6.2-") ? generationLabel("Astra", model: model) : "Astra"
+        case let value where value.contains("astra"): return generationLabel("Astra", model: model)
         case let value where value.contains("luna"): return generationLabel("Luna", model: model)
         case let value where value.contains("terra"): return "Terra"
         case let value where value.contains("sol"): return generationLabel("Sol", model: model)
@@ -617,7 +623,11 @@ enum CodexSessionsStore {
     /// Like the rate limits, only the newest line matters, so this is a
     /// backwards marker search rather than a decode of every line: rollout
     /// files run to tens of megabytes and this is called every few seconds.
+    /// Subagent sessions (Codex's auto-review and the like) run their own
+    /// model, not the one the user picked, so they're skipped here; their
+    /// rate limits are still the account's and stay in `read(files:)`.
     static func latestModelContext(in files: [URL]) -> CodexModelContext? {
+        let files = files.filter { !isSubagentSession($0) }
         for marker in ["\"turn_context\"", "\"thread_settings_applied\""] {
             for fileURL in files {
                 if let context = latestLine(in: fileURL, marker: marker, decode: decodeModelContext) {
@@ -645,6 +655,16 @@ enum CodexSessionsStore {
             searchRange = data[..<lineStart].range(of: marker, options: .backwards)
         }
         return nil
+    }
+
+    /// The first line of every rollout is its `session_meta`.
+    private static func isSubagentSession(_ fileURL: URL) -> Bool {
+        guard let data = try? Data(contentsOf: fileURL, options: .alwaysMapped) else { return false }
+        let firstLine = data.prefix { $0 != UInt8(ascii: "\n") }
+        guard let meta = try? JSONDecoder().decode(SessionMetaLine.self, from: firstLine),
+              meta.type == "session_meta"
+        else { return false }
+        return meta.payload?.source?.isSubagent == true
     }
 
     private static func decodeModelContext(from line: Data) -> CodexModelContext? {
@@ -768,6 +788,27 @@ enum CodexSessionsStore {
                     case reasoningEffort = "reasoning_effort"
                 }
             }
+        }
+    }
+
+    private struct SessionMetaLine: Decodable {
+        let type: String?
+        let payload: Payload?
+
+        struct Payload: Decodable {
+            let source: Source?
+        }
+
+        /// A plain string ("cli", "vscode", "exec") for sessions the user
+        /// drives, `{"subagent": ...}` for ones Codex spawns itself.
+        struct Source: Decodable {
+            let isSubagent: Bool
+
+            init(from decoder: Decoder) throws {
+                isSubagent = (try? decoder.container(keyedBy: Key.self).contains(.subagent)) ?? false
+            }
+
+            private enum Key: String, CodingKey { case subagent }
         }
     }
 
